@@ -1,0 +1,18 @@
+c:\users\stephen\documents\visual studio 2010\Projects\LEDgoes Font Maker\LEDgoes Font Maker\bin\Debug\LEDgoes Font Maker.exe
+c:\users\stephen\documents\visual studio 2010\Projects\LEDgoes Font Maker\LEDgoes Font Maker\bin\Debug\LEDgoes Font Maker.pdb
+c:\users\stephen\documents\visual studio 2010\Projects\LEDgoes Font Maker\LEDgoes Font Maker\obj\x86\Debug\ResolveAssemblyReference.cache
+c:\users\stephen\documents\visual studio 2010\Projects\LEDgoes Font Maker\LEDgoes Font Maker\obj\x86\Debug\LEDgoes_Font_Maker.Form1.resources
+c:\users\stephen\documents\visual studio 2010\Projects\LEDgoes Font Maker\LEDgoes Font Maker\obj\x86\Debug\LEDgoes_Font_Maker.Properties.Resources.resources
+c:\users\stephen\documents\visual studio 2010\Projects\LEDgoes Font Maker\LEDgoes Font Maker\obj\x86\Debug\GenerateResource.read.1.tlog
+c:\users\stephen\documents\visual studio 2010\Projects\LEDgoes Font Maker\LEDgoes Font Maker\obj\x86\Debug\GenerateResource.write.1.tlog
+c:\users\stephen\documents\visual studio 2010\Projects\LEDgoes Font Maker\LEDgoes Font Maker\obj\x86\Debug\LEDgoes Font Maker.exe
+c:\users\stephen\documents\visual studio 2010\Projects\LEDgoes Font Maker\LEDgoes Font Maker\obj\x86\Debug\LEDgoes Font Maker.pdb
+C:\Users\Stephen\Documents\Visual Studio 2010\Projects\LEDgoes PC Tools\LEDgoes Font Maker\obj\x86\Debug\LEDgoes Font Maker.exe
+C:\Users\Stephen\Documents\Visual Studio 2010\Projects\LEDgoes PC Tools\LEDgoes Font Maker\obj\x86\Debug\LEDgoes Font Maker.pdb
+C:\Users\Stephen\Documents\Visual Studio 2010\Projects\LEDgoes PC Tools\LEDgoes Font Maker\bin\Debug\LEDgoes Font Maker.exe
+C:\Users\Stephen\Documents\Visual Studio 2010\Projects\LEDgoes PC Tools\LEDgoes Font Maker\bin\Debug\LEDgoes Font Maker.pdb
+C:\Users\Stephen\Documents\Visual Studio 2010\Projects\LEDgoes PC Tools\LEDgoes Font Maker\obj\x86\Debug\ResolveAssemblyReference.cache
+C:\Users\Stephen\Documents\Visual Studio 2010\Projects\LEDgoes PC Tools\LEDgoes Font Maker\obj\x86\Debug\LEDgoes_Font_Maker.Form1.resources
+C:\Users\Stephen\Documents\Visual Studio 2010\Projects\LEDgoes PC Tools\LEDgoes Font Maker\obj\x86\Debug\LEDgoes_Font_Maker.Properties.Resources.resources
+C:\Users\Stephen\Documents\Visual Studio 2010\Projects\LEDgoes PC Tools\LEDgoes Font Maker\obj\x86\Debug\GenerateResource.read.1.tlog
+C:\Users\Stephen\Documents\Visual Studio 2010\Projects\LEDgoes PC Tools\LEDgoes Font Maker\obj\x86\Debug\GenerateResource.write.1.tlog

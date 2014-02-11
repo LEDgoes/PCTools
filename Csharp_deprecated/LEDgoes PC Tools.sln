@@ -1,0 +1,32 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LEDgoes Font Maker", "LEDgoes Font Maker\LEDgoes Font Maker.csproj", "{1877E81C-4C11-4F69-875F-48E904749A94}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LEDgoes PC Interface", "LEDgoes PC Interface\LEDgoes PC Interface.csproj", "{E8E85B92-00BB-4FBD-8DF9-8413B63BBE07}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LEDgoes Programming Assistant", "LEDgoes Programming Assistant\LEDgoes Programming Assistant.csproj", "{6335B2CC-765A-4DFE-A4A6-48CA6FFBD6B9}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x86 = Debug|x86
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1877E81C-4C11-4F69-875F-48E904749A94}.Debug|x86.ActiveCfg = Debug|x86
+		{1877E81C-4C11-4F69-875F-48E904749A94}.Debug|x86.Build.0 = Debug|x86
+		{1877E81C-4C11-4F69-875F-48E904749A94}.Release|x86.ActiveCfg = Release|x86
+		{1877E81C-4C11-4F69-875F-48E904749A94}.Release|x86.Build.0 = Release|x86
+		{E8E85B92-00BB-4FBD-8DF9-8413B63BBE07}.Debug|x86.ActiveCfg = Debug|x86
+		{E8E85B92-00BB-4FBD-8DF9-8413B63BBE07}.Debug|x86.Build.0 = Debug|x86
+		{E8E85B92-00BB-4FBD-8DF9-8413B63BBE07}.Release|x86.ActiveCfg = Release|x86
+		{E8E85B92-00BB-4FBD-8DF9-8413B63BBE07}.Release|x86.Build.0 = Release|x86
+		{6335B2CC-765A-4DFE-A4A6-48CA6FFBD6B9}.Debug|x86.ActiveCfg = Debug|x86
+		{6335B2CC-765A-4DFE-A4A6-48CA6FFBD6B9}.Debug|x86.Build.0 = Debug|x86
+		{6335B2CC-765A-4DFE-A4A6-48CA6FFBD6B9}.Release|x86.ActiveCfg = Release|x86
+		{6335B2CC-765A-4DFE-A4A6-48CA6FFBD6B9}.Release|x86.Build.0 = Release|x86
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

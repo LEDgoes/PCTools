@@ -1,0 +1,9 @@
+C:\Users\Stephen\Documents\Visual Studio 2010\Projects\LEDgoes PC Tools\LEDgoes Programming Assistant\bin\Debug\LEDgoes Programming Assistant.exe
+C:\Users\Stephen\Documents\Visual Studio 2010\Projects\LEDgoes PC Tools\LEDgoes Programming Assistant\bin\Debug\LEDgoes Programming Assistant.pdb
+C:\Users\Stephen\Documents\Visual Studio 2010\Projects\LEDgoes PC Tools\LEDgoes Programming Assistant\obj\x86\Debug\ResolveAssemblyReference.cache
+C:\Users\Stephen\Documents\Visual Studio 2010\Projects\LEDgoes PC Tools\LEDgoes Programming Assistant\obj\x86\Debug\LEDgoes_Programming_Assistant.Form1.resources
+C:\Users\Stephen\Documents\Visual Studio 2010\Projects\LEDgoes PC Tools\LEDgoes Programming Assistant\obj\x86\Debug\LEDgoes_Programming_Assistant.Properties.Resources.resources
+C:\Users\Stephen\Documents\Visual Studio 2010\Projects\LEDgoes PC Tools\LEDgoes Programming Assistant\obj\x86\Debug\GenerateResource.read.1.tlog
+C:\Users\Stephen\Documents\Visual Studio 2010\Projects\LEDgoes PC Tools\LEDgoes Programming Assistant\obj\x86\Debug\GenerateResource.write.1.tlog
+C:\Users\Stephen\Documents\Visual Studio 2010\Projects\LEDgoes PC Tools\LEDgoes Programming Assistant\obj\x86\Debug\LEDgoes Programming Assistant.exe
+C:\Users\Stephen\Documents\Visual Studio 2010\Projects\LEDgoes PC Tools\LEDgoes Programming Assistant\obj\x86\Debug\LEDgoes Programming Assistant.pdb
