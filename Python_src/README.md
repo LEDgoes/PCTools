@@ -7,6 +7,8 @@ This version should be stable enough to facilitate production deployment.  I'm n
 REQUIREMENTS/DEPENDENCIES:
 
 * Qt5
+* python-twitter
+* Pillow 2.3.1 (Python Imaging Library)
 And possibly others...
 
 GETTING STARTED WITH THE PROGRAM:
@@ -22,6 +24,28 @@ Next, choose the COM port that represents the USB or Wireless Communicator.  Cho
 Finally, hit "Connect" next to the COM port selection box.
 
 Send the marquee messages to scroll by selecting the "Raw Text" tab.  Enter messages in the box at the bottom, then hit the "Push" button.
+
+TWITTER:
+
+To display messages from Twitter, you need to have a Twitter account and register an application with it.  To do this, log in to https://dev.twitter.com with your Twitter username & password.  Click at the top where your avatar icon is, and it will activate a drop-down menu.  Click "My applications", then "Create New App".  Enter some information about it.
+
+Once you're done, take note of the API Keys from the "API Keys" tab.  Copy these four values into the text fields in the LEDgoes PC Tools:
+
+Twitter => LEDgoes
+1. API Key => Consumer Key
+2. API Secret => Consumer Secret
+3. Access Token => Access Token
+4. Access Token Secret => Access Token Secret
+
+Once you have done this, click the "Authenticate" button on the LEDgoes PC Tools.  You should now be authenticated on Twitter.  Now, enter a Twitter hashtag, handle, or phrase into the box at the bottom and hit "Start".  When you wish to stop receiving Tweets, hit the "Start" button again and upon receiving one more Tweet, it will stop.
+
+Currently, the LEDgoes Default Font does not understand lowercase characters, nor will the program transform lowercase characters into uppercase characters.  This will be fixed in a future revision of the font & program.  You are welcome to make these changes yourself.
+
+Twitter mode is set to rely on a circular buffer that can contain 10 messages.  The buffer will fill all 10 message slots before overwriting earlier messages.  If the marquee does not scroll through all 10 messages by the time 10 messages are received through the Twitter stream, then not all messages will be seen.  Also, the program is currently set to display Tweets in English only; this is easily changeable in the code.
+
+The Twitter API allows users to customize their stream to look for multiple keywords/hashtags/handles and filter by location.  Currently our user interface only allows you to filter by one keyword.  You can add more filters in the code.  Eventually we will devise an interface to allow users to add all the desired filters.
+
+Finally, when using Twitter with LEDgoes, it is not recommended to use Raw Text to transmit messages at the same time.  With a fast-moving Twitter stream, your message will probably get wiped out before the marquee even refreshes what messages it will display.  This is another issue that will probably get cleaned up in a future release.
 
 FONTS:
 
@@ -52,7 +76,7 @@ You can only change baud rate once.  The software seems to have problems sending
 ENHANCEMENT WISHLIST:
 
 * Animations (GIF, BMP frames, AVI movies)
-* Read from a Twitter feed
+* Enhance Twitter interactions & stream customizations
 * Read from an RSS feed
 * Proper Rich Text box to handle different fonts & colors in the same message
 * Implementation of control signals understood by the firmware to change the serial baud rate & do debugging/development
