@@ -5,12 +5,20 @@ To recompile any changes to the UI, run at the command prompt:
 pyuic5 -o LEDgoesForm.py "C:\Users\Stephen\Documents\LEDgoes PC Interface.ui"
 
 Requires pywin32 - http://sourceforge.net/projects/pywin32/files/pywin32/Build%20218/
+Requires pil
+Twitter dependencies:  (pip install python-twitter)
+    Requires Python-Twitter - http://code.google.com/p/python-twitter/
+        Python-Twitter requires http://cheeseshop.python.org/pypi/simplejson
+        Python-Twitter requires http://code.google.com/p/httplib2/
+        Python-Twitter requires http://github.com/simplegeo/python-oauth2
+
 
 Any assistance to make this code more "Pythonic" will be greatly welcome.
 '''
 # import things for the application & the GUI framework
 import sys
 from PyQt5.QtWidgets import QApplication, QMainWindow
+import LEDgoesGlobals as globals
 # import the LEDgoes-specific GUI framework details
 import LEDgoesForm
 from LEDgoesForm import Ui_MainWindow
@@ -25,6 +33,12 @@ import re                               # In Windows, we need to search for "COM
 import glob
 # Import the signal module so we can listen for when the user hits Ctrl+C
 import signal
+# Import image tools, including external & internal libraries
+import Image
+import LEDgoesImageRoutines
+# Import Twitter tools, including external & internal libraries
+import twitter
+import LEDgoesTwitter
 
 ################################################################################
 # Step 0. Define the signal handler "KeyboardInterrupt" so the user can exit the app with Ctrl+C
@@ -45,8 +59,6 @@ from collections import deque
 from time import sleep
 # import threading so our I/O isn't on the UI thread
 import threading
-# import things from our main UI script
-# import richMsgs, rows, font, boards, cxn1, cxn2
 
 exitFlag = 0              # Will be raised when the thread should exit
 
@@ -55,7 +67,7 @@ maxCounter = 0            # How far the scrolling message can advance without hi
 serialMsgRed = deque()    # Red-only data translated into serial format for direct output
 serialMsgGreen = deque()  # Green-only data translated into serial format for direct output
 evt = threading.Event()   # Thread will check if the event has gone to False, and then wait
-evt.set()                 # Standard Python events allow threads to ocontinue running if event flag is set
+evt.set()                 # Standard Python events allow threads to continue running if event flag is set
 evtDefinition = {}        # If the thread is running & the user wants to send a FW control signal, the thread will execute this string
 
 def writeString(boardsIdx):
@@ -97,10 +109,12 @@ def writeString(boardsIdx):
 def makeRMessageString(message):
     'Construct & return the message to appear in Red'
     return makeMessageString(message, "red")
+    #return makeMessageString("     RED       YELLOW   ", "red")
 
 def makeGMessageString(message):
     'Construct & return the message to appear in Green'
     return makeMessageString(message, "green")
+    #return makeMessageString("         GREEN YELLOW   ", "green")
 
 # Returns public int[]
 def makeMessageString(message, color):
@@ -164,10 +178,11 @@ class serialThread (threading.Thread):
             # MESSAGE EXPIRATION
             if counter > maxCounter:          # If we've reached the end of the message,
                 print "Updating messages...\n"
+                print globals.richMsgs
                 counter = 0                   # reset the column counter to 0
                 serialMsgRed.clear()          # reset the red string to empty
                 serialMsgGreen.clear()        # reset the green string to empty
-                for msg in richMsgs:
+                for msg in globals.richMsgs:
                     #emptyString = new String(' ', messages[i].Length);  // Make an empty string equal in length to the current message
                     #redString += ((i % 2 == 0) ? messages[i] : emptyString) + "  ";     // set the red string
                     #greenString += ((i % 2 != 0) ? messages[i] : emptyString) + "  ";   // set the green string
@@ -184,9 +199,8 @@ class serialThread (threading.Thread):
 # Step 2. Define important variables & functions & import user-defined modules
 ################################################################################
 
-richMsgs = []             # Human-readable messages with formatting markers included
 introMsg = " :: AWAITING MESSAGES "
-richMsgs.append(introMsg) # The first message you should see when you connect to the board
+globals.richMsgs.append(introMsg) # The first message you should see when you connect to the board
 counter = 0               # Stores how far into the message the board's first LED column needs to display
 cxn1 = serial.Serial()    # Connection for row 1
 cxn2 = serial.Serial()    # Connection for row 2
@@ -236,8 +250,8 @@ def serialWelcome():
         serialSendEx("", "\xFF\x82" + chr(boardID + 128), 0.001)
         serialSendEx("", "\xFF\x82" + chr(boardID + 192), 0.001)
     # Construct the message strings and find their length
-    serialMsgRed.extend(makeRMessageString(richMsgs[0]))
-    serialMsgGreen.extend(makeGMessageString(richMsgs[0]))
+    serialMsgRed.extend(makeRMessageString(globals.richMsgs[0]))
+    serialMsgGreen.extend(makeGMessageString(globals.richMsgs[0]))
     maxCounter = len(serialMsgRed) - (len(boards) * 5)
     # Start a thread
     outputThread = serialThread()
@@ -389,14 +403,17 @@ class MainWindow(QMainWindow):
         # Raw Text panel
         self.ui.btnPush.clicked.connect(self.pushMessage)
         # Twitter Feed panel
+        self.ui.btnTwitterAuth.clicked.connect(self.twitterAuth)
+        self.ui.btnTwitterStream.clicked.connect(self.twitterStream)
         # Animation panel
+        self.ui.btnAnim.clicked[()].connect(lambda idContainer=self.ui.txtChipIDIncr: self.excrementChipID(idContainer, 1))
         # Firmware panel
         self.ui.btnResetChipIDs.clicked.connect(self.resetChipIDs)
         self.ui.btnIncrementChipID.clicked[()].connect(lambda idContainer=self.ui.txtChipIDIncr: self.excrementChipID(idContainer, 1))
         self.ui.btnDecrementChipID.clicked[()].connect(lambda idContainer=self.ui.txtChipIDDecr: self.excrementChipID(idContainer, -1))
         self.ui.btnSetChipID.clicked[()].connect(lambda oldIdContainer=self.ui.txtChipIDCurrent, newIdContainer=self.ui.txtChipIDDesired: self.setChipID(oldIdContainer, newIdContainer))
         self.ui.btnShowTestPattern.clicked[()].connect(lambda idContainer=self.ui.txtTestOn: self.showTestPatternOn(idContainer))
-        self.ui.btnStopGuessing.clicked.connect(lambda id=64: self.showTestPatternOn(id))
+        self.ui.btnStopGuessing.clicked[()].connect(lambda id=64: self.showTestPatternOn(id))
         # Simulator panel
         # Baud Rate panel
         
@@ -461,12 +478,29 @@ class MainWindow(QMainWindow):
         # TODO: Show the new message on our UI
         # Put the message on our message stack
         print "Attempting to add message:", self.ui.txtMessage.toPlainText()
-        if richMsgs[0] != introMsg:
-            richMsgs.append(self.ui.txtMessage.toPlainText())
+        if globals.richMsgs[0] != introMsg:
+            globals.richMsgs.append(self.ui.txtMessage.toPlainText())
         else:
-            richMsgs[0] = self.ui.txtMessage.toPlainText()
-        print richMsgs
+            globals.richMsgs[0] = self.ui.txtMessage.toPlainText()
+        print globals.richMsgs
         
+    def twitterAuth(self, event):
+        global twitterApi
+        twitterApi = LEDgoesTwitter.twitterAuth(
+            self.ui.txtTwitterConsumerKey.toPlainText(),
+            self.ui.txtTwitterConsumerSecret.toPlainText(),
+            self.ui.txtTwitterTokenKey.toPlainText(),
+            self.ui.txtTwitterTokenSecret.toPlainText()
+        )
+    
+    def twitterStream(self, event):
+        LEDgoesTwitter.twitterStream(self.ui.txtTwitterSearch.toPlainText())
+        
+    def showAnimation(self, animFileContainer):
+        path = "C:\\Users\\Stephen\\Videos\\LEDgoes_anim.gif"
+        results = analyzeImage(path)
+        processImage(path, results)
+
     def resetChipIDs(self, event):
         serialSendEx("Resetting chip IDs...", "\xFF\x81\x00", 2)
 
@@ -479,7 +513,7 @@ class MainWindow(QMainWindow):
             serialSendEx(debugMsg, "\xFF\x82" + chr(int(chipAddr)), 2)
         elif direction == -1:
             debugMsg = "Decrementing chip address %d..." % chipAddr
-            serialSendEx(debugMsg, "\xFF\x82" + chr(int(chipAddr)), 2)
+            serialSendEx(debugMsg, "\xFF\x83" + chr(int(chipAddr)), 2)
         
     def setChipID(self, oldBoardIdContainer, newBoardIdContainer):
         # Validate the input
@@ -491,7 +525,8 @@ class MainWindow(QMainWindow):
         
     def showTestPatternOn(self, boardIdContainer):
         # Validate the input
-        boardAddr = isValidBoardAddress(boardIdContainer)
+        print boardIdContainer
+        boardAddr = isValidBoardAddress(boardIdContainer, 0) if (boardIdContainer != 64) else 64
         if boardAddr is None: return
         if (boardAddr < 64):
             debugMsg = "Showing test pattern on board ID %s (chip addresses %d and %d..." % (boardAddr, boardAddr + 128, boardAddr + 192)
