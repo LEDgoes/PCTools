@@ -97,6 +97,7 @@ ERRATA:
 * Stop the Twitter thread before closing the program, or else the program will stop responding and you'll probably have to close it through Task Manager.
 * Cutting & pasting external text into the Raw Text Composition Box has not been thoroughly tested.  If your text already has formatting, it might behave erratically.  At least make sure it has a red, green, or yellow color first.
 * Reducing the message limit to a number below the messages already in the queue will have an unpredictable effect.  You will need to delete messages manually, because the marquee will always show all messages in the queue, not just how many messages it is limited to.  We will make this automatic in a future release.
+* Program icons don't show up in the shortcut & taskbar when using the Windows installer to install the software.
 
 ENHANCEMENT WISHLIST:
 
