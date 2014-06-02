@@ -17,8 +17,11 @@ Any assistance to make this code more "Pythonic" will be greatly welcome.
 '''
 # import things for the application & the GUI framework
 import sys
-from PyQt5.QtWidgets import QApplication, QMainWindow
+from PyQt5.QtWidgets import QApplication, QMainWindow, QMessageBox
+from PyQt5.QtGui import QIcon
+from PyQt5.QtCore import Qt
 import LEDgoesGlobals as globals
+import json
 # import the LEDgoes-specific GUI framework details
 import LEDgoesForm
 from LEDgoesForm import Ui_MainWindow
@@ -33,15 +36,28 @@ import re                               # In Windows, we need to search for "COM
 import glob
 # Import the signal module so we can listen for when the user hits Ctrl+C
 import signal
+# Import the window used for helping debug the marquee & the software
+import LEDgoesConsole as console
+# Import default text tools
+import LEDgoesScrollingText as scroll
 # Import image tools, including external & internal libraries
-import Image
-import LEDgoesImageRoutines
+from PIL import Image
+import LEDgoesImageRoutines as ImRts
 # Import Twitter tools, including external & internal libraries
 import twitter
 import LEDgoesTwitter
+# Import the derived class for raw text list items
+from LEDgoesRawTextItem import RawTextItem
 
 ################################################################################
-# Step 0. Define the signal handler "KeyboardInterrupt" so the user can exit the app with Ctrl+C
+# Step 1. Define the QApplication so we can start building GUI widgets
+################################################################################
+
+app = QApplication(sys.argv)	    
+app.setWindowIcon(QIcon('LEDgoes-Icon.ico'))
+
+################################################################################
+# Step 2. Define the signal handler "KeyboardInterrupt" so the user can exit the app with Ctrl+C
 ################################################################################
 
 # TODO: Not working. Fix.
@@ -51,7 +67,7 @@ def signal_handler(signal, frame):
 signal.signal(signal.SIGINT, signal_handler)
 
 ################################################################################
-# Step 1. Define the serial thread routine, since evidently I can't put this in a separate file w/o circular dependencies
+# Step 3. Define the serial thread routine, since evidently I can't put this in a separate file w/o circular dependencies
 ################################################################################
 # import deque from collections since it should be faster than using a standard list
 from collections import deque
@@ -60,156 +76,15 @@ from time import sleep
 # import threading so our I/O isn't on the UI thread
 import threading
 
-exitFlag = 0              # Will be raised when the thread should exit
-
-counter = 0               # How far the scrolling message has advanced
-maxCounter = 0            # How far the scrolling message can advance without hitting errors
-serialMsgRed = deque()    # Red-only data translated into serial format for direct output
-serialMsgGreen = deque()  # Green-only data translated into serial format for direct output
-evt = threading.Event()   # Thread will check if the event has gone to False, and then wait
-evt.set()                 # Standard Python events allow threads to continue running if event flag is set
-evtDefinition = {}        # If the thread is running & the user wants to send a FW control signal, the thread will execute this string
-
-def writeString(boardsIdx):
-    # Import global variables
-    global serialMsgRed, serialMsgGreen, cxn1, cxn2, boards
-    # Figure out what serial port to use
-    rows = 1
-    #if rows == 2 and not multiplexed:   # With 2 rows in use & no demultiplexer, pick between the 2 active serial conns
-    #    cxnRef = (offset % 0x02 == 0) ? cxn1 : cxn2;    # even chips are the top row, odd chips are the bottom row
-    #else:             # With only 1 row, or 3+ rows, use just one serial conn (3+ requires the demuxer)
-    cxnRef = cxn1
-    # Calculate what 5 columns to grab out of our rBuf & gBuf depending on what matrix we're sending to
-    adjustment = (boardsIdx / rows) * 5;
-    # Grab the 5 columns, shift if necessary, and save it into an actual byte array
-    #shift = (offset % rows) * 7
-    shift = 0
-    rPart = chr(boards[boardsIdx] | 0x80)
-    gPart = chr(boards[boardsIdx] | 0xC0)
-    for i in range(5):
-        index = counter + adjustment + i
-        # How much to shift? Remember to AND everyone with 0x7F so the high bit isn't set after we shift
-        try:
-            rPart += chr((ord(serialMsgRed[index]) >> shift) & 0x7F)
-        except IndexError:
-            rPart += chr(0)
-            print "writeString: Index error at index " + str(index)
-        #if (index > 0x10) { rPart[i] = (byte) (rPart[i] & 0x1F); }
-        try:
-            gPart += chr((ord(serialMsgGreen[index]) >> shift) & 0x7F)
-        except IndexError:
-            rPart += chr(0)
-            print "writeString: Index error at index " + str(index)
-    #if (index > 0x10) { gPart[i] = (byte) (gPart[i] & 0xFC); }
-    # Write red portion
-    cxn1.write(rPart)
-    # Write green portion
-    cxn1.write(gPart)
-
-def makeRMessageString(message):
-    'Construct & return the message to appear in Red'
-    return makeMessageString(message, "red")
-    #return makeMessageString("     RED       YELLOW   ", "red")
-
-def makeGMessageString(message):
-    'Construct & return the message to appear in Green'
-    return makeMessageString(message, "green")
-    #return makeMessageString("         GREEN YELLOW   ", "green")
-
-# Returns public int[]
-def makeMessageString(message, color):
-    # The default subMessage will be a blank string the length of the "message" text
-    # This is so all our deques will end up the same length
-    subMessage = " " * (message.__len__())
-    serialMsg = deque()
-    # Find out which color we need to make the message in
-    if (color == "green"):
-        # Generate a sub-message containing only the parts to light up in green or yellow.
-        subMessage = message
-    elif (color == "red"):
-        # Generate a sub-message containing only the parts to light up in red or yellow.
-        subMessage = message
-    else:
-        # TODO: Throw exception
-        print "Unknown color encountered."
-        subMessage = message
-    # Make the message string from the letters
-    if (rows == 1):
-        # Each character takes up 5 columns plus 1 spacer; each board is 5 columns wide
-        serialMsg.extend(["\x00", "\x00", "\x00", "\x00", "\x00"])    # add padding to the left of the message
-        for character in subMessage:
-            # Map the current letter to something that appears in the font
-            try:
-			    # Add the prescribed character
-                serialMsg.extend( font['LEDgoes Default Font']['size']['1']['weight']['4'][character] )
-            except KeyError:
-                serialMsg.extend(["\x00", "\x00", "\x00", "\x00", "\x00"])
-                print "Character " + character + " unknown; substituting with whitespace"
-            # Insert spacing between characters
-            try:
-				# Add the prescribed spacing between characters for this font
-                serialMsg.extend(['\x00'] * font['LEDgoes Default Font']['size']['1']['weight']['4']['spacing'])
-            except:
-                # Add one space
-                print "Character spacing is unknown for this font; assuming 0"
-    return serialMsg
-    
-class serialThread (threading.Thread):
-    def __init__(self):
-        super(serialThread, self).__init__()
-        print "IO Thread is now running; when it stops may not necessarily be advertised..."
-    
-    def run(self):
-        global counter, exitFlag, serialMsgRed, serialMsgGreen, maxCounter, delay, evt, evtDefinition, cxn1
-        while not exitFlag:  # mind you, this is the implementation coming straight from the firmware ;)
-            # CHECKING FOR CONTROL MESSAGES
-            if not evt.is_set():
-                cxn1.write(evtDefinition['message'])
-                try:      # if a delay has been set, sleep for that length of time
-                    sleep(evtDefinition['delay'])
-                    evt.set()
-                except:   # otherwise, do not resume until an external event happens which resets the event flag
-                    evt.wait()
-            # WRITING THE MESSAGE ON THE BOARD
-            for i in range(len(boards)):      # iterate through the amount of characters we have on the board
-                procId = i                    # Each processor looks for its own special "code"
-                writeString(procId)           # Write the portion of the string pertaining to the active processor
-            counter += 1                      # Now go on to show the next character column
-            # MESSAGE EXPIRATION
-            if counter > maxCounter:          # If we've reached the end of the message,
-                print "Updating messages...\n"
-                print globals.richMsgs
-                counter = 0                   # reset the column counter to 0
-                serialMsgRed.clear()          # reset the red string to empty
-                serialMsgGreen.clear()        # reset the green string to empty
-                for msg in globals.richMsgs:
-                    #emptyString = new String(' ', messages[i].Length);  // Make an empty string equal in length to the current message
-                    #redString += ((i % 2 == 0) ? messages[i] : emptyString) + "  ";     // set the red string
-                    #greenString += ((i % 2 != 0) ? messages[i] : emptyString) + "  ";   // set the green string
-                    #greenString += messages[i] + "  ";     // set the red string
-                    #redString += messages[i] + "  ";   // set the green string
-                    serialMsgRed.extend(makeRMessageString(msg))
-                    serialMsgGreen.extend(makeGMessageString(msg))
-                    maxCounter = len(serialMsgRed) - (len(boards) * 5)
-            # Now just sleep for a wee bit before we go to the next character column
-            sleep(delay)
-
                     
 ################################################################################
-# Step 2. Define important variables & functions & import user-defined modules
+# Step 3. Define important variables & functions & import user-defined modules
 ################################################################################
 
-introMsg = " :: AWAITING MESSAGES "
-globals.richMsgs.append(introMsg) # The first message you should see when you connect to the board
-counter = 0               # Stores how far into the message the board's first LED column needs to display
-cxn1 = serial.Serial()    # Connection for row 1
-cxn2 = serial.Serial()    # Connection for row 2
+globals.evt.set()         # Standard Python events allow threads to continue running if event flag is set
 activeConns = 0           # How many active serial connections are going on
-outputThread = None       # Reference to thread running the serial IO code
-rows = 1                  # Number of rows of panels in the display
-font = {}                 # Master dictionary of all font information
-boards = deque()          # Number of boards being used in the matrix
-delay = 0                 # Amount of time to wait until updating the board with another round of serial data
+outputThread = None       # Reference to thread running the serial IO code for scrolling text
+animationThread = None    # Reference to thread running the serial IO code for animations
 baudRates = ["9600", "14400", "19200", "28800", "38400", "57600", "76800", "115200",
 "200000", "250000", "500000", "1000000"]
 baudRateIdx = 0           # Index of the baud rate we're running at (w.r.t. baudRates)
@@ -217,87 +92,96 @@ prevBaudRate = "9600"     # If the user resets the baud rate, store it here in c
 
 # Import other modules & methods
 
-def serialWelcome():
-    global cxn1, serialMsgRed, serialMsgGreen, outputThread, prevBaudRate, boards
-    if not boards:       # if boards is empty,
-        _updateBoards(2) # populate it
-    delay = mw.ui.spinPanelsPerRow.value() * 0.001
-    # At 9600 baud, adjust the boards' baud rate to conform to the user's wishes (just in case some were reset)
+def serialWelcome(welcomeType):
+    global outputThread, animationThread, prevBaudRate
+    if not globals.boards:       # if globals.boards is empty,
+        _updateBoards(2)         # populate it
+    globals.delay = mw.ui.spinUpdateDelay.value() * 0.001
+    # At 9600 baud, adjust each board's baud rate to conform to the user's wishes (just in case some were reset)
     if baudRateIdx != 0:
         serialMsg = "\xFF%s" % chr(0x90 + baudRateIdx)
         serialSendEx("Sending %s at 9600 baud to change baud rate" % serialMsg, serialMsg, 1)
         sleep(1.2)
-    cxn1.close()
+    globals.cxn1.close()
     if baudRates[baudRateIdx] != prevBaudRate and prevBaudRate != "9600":
         # the user adjusted the serial rate before, so talk to the boards at their current rate
-        cxn1.baudrate = int(prevBaudRate)
-        cxn1.open()
+        globals.cxn1.baudrate = int(prevBaudRate)
+        globals.cxn1.open()
         serialMsg = "\xFF%s" % chr(0x90 + baudRateIdx)
         debugMsg = "\nSending %s at %s baud to change baud rate" % (serialMsg, baudRates[baudRateIdx])
         serialSendEx(debugMsg, serialMsg, 1)
         prevBaudRate = baudRates[baudRateIdx]
         sleep(1.2)
-        cxn1.close()
+        globals.cxn1.close()
     
     # Now actually re-open this program's serial connection in the user's desired speed
-    cxn1.baudrate = int(baudRates[baudRateIdx])
-    print cxn1.baudrate
-    cxn1.open()
+    globals.cxn1.baudrate = int(baudRates[baudRateIdx])
+    console.cwrite(globals.cxn1.baudrate)
+    globals.cxn1.open()
     # Send the serial commands to adjust any board IDs that might be one too low
-    tmp = list(boards)
-    increments = [x - 1 for x in tmp[1:]]
-    for boardID in increments:
-        serialSendEx("", "\xFF\x82" + chr(boardID + 128), 0.001)
-        serialSendEx("", "\xFF\x82" + chr(boardID + 192), 0.001)
-    # Construct the message strings and find their length
-    serialMsgRed.extend(makeRMessageString(globals.richMsgs[0]))
-    serialMsgGreen.extend(makeGMessageString(globals.richMsgs[0]))
-    maxCounter = len(serialMsgRed) - (len(boards) * 5)
+    if len(globals.boards) < 33:    # Only do this when 32 boards or less are in use
+        tmp = list(globals.boards)
+        increments = [x - 1 for x in tmp[1:]]
+        for boardID in increments:
+            serialSendEx("", "\xFF\x82" + chr(boardID + 128), 0.001)
+            serialSendEx("", "\xFF\x82" + chr(boardID + 192), 0.001)
     # Start a thread
-    outputThread = serialThread()
-    outputThread.start()
-
+    if welcomeType == "scroll":
+        outputThread = scroll.serialThread()
+        outputThread.start()
+    elif welcomeType == "animation":
+        animationThread = ImRts.animationThread()
+        animationThread.start()
 
 ################################################################################
-# Step 2. Load all user-defined fonts
+# Step 4. Load all user-defined fonts
 ################################################################################
 
 # Look for all .ledfont files in the current working directory
-print "\nLoading fonts..."
+console.cwrite("\nLoading fonts...")
+fontWarningsEnabled = True
 for filename in glob.glob("*.ledfont"):
-    # Debug: Print the filename
-    print filename
-    # Load the font into memory
-    fontfile = open(filename, 'r')
-    fontname = fontfile.readline().strip()      # Read font name
-    fontsupport = fontfile.readline().strip()   # Read the charset this font can support (ASCII or Unicode)
-    font[fontname] = {'support': fontsupport, 'size': {}}
-    # Read the charset & split it into groups by font size
-    charsBySizes = fontfile.read().split(chr(29))   # ASCII 29 splits fonts of different siaes
-    for sizeSet in charsBySizes:
-        charDefs = sizeSet.split(chr(10))
-        # The first entry designates the font size & font weight
-        fontProperties = charDefs.pop(0).split(',')
-        fontSize = fontProperties[0][5:]
-        fontWeight = fontProperties[1][8:-1]
-        font[fontname]['size'][fontSize] = {}
-        font[fontname]['size'][fontSize]['weight'] = {}
-        font[fontname]['size'][fontSize]['weight'][fontWeight] = {}
-        # The second entry designates the spacing that should occur between characters
-        spacing = charDefs.pop(0).split(": ")[1]
-        # The subsequent entries designate characters
-        for charDef in charDefs:
-            char = charDef.split(':')
-            font[fontname]['size'][fontSize]['weight'][fontWeight][char[0]] = char[1]
-        # Now record the desired spacing value
-        font[fontname]['size'][fontSize]['weight'][fontWeight]['spacing'] = int(spacing)
+    try:
+        # Debug: Print the filename
+        console.cwrite(filename)
+        # Load the font into memory
+        fontfile = open(filename, 'r')
+        font = fontfile.read()
+        fontfile.close()
+        fontjson = json.loads(font)
+        globals.font[fontjson['name']] = fontjson
+    except Exception as e:
+        console.cwrite("Error loading font %s" % filename)
+        if fontWarningsEnabled:
+            msgBox = QMessageBox()
+            msgBox.setWindowTitle("LEDgoes PC Interface")
+            msgBox.setText("Error parsing font")
+            msgBox.setInformativeText("There appears to be a syntax error in font file %s, and it has not been loaded.  Press OK to continue, or Ignore to continue and suppress future messages of this type." % filename)
+            msgBox.setStandardButtons(QMessageBox.Ok | QMessageBox.Ignore)
+            msgBox.setDefaultButton(QMessageBox.Ok)
+            msgBox.setIcon(QMessageBox.Warning)
+            ret = msgBox.exec_()
+            if ret == QMessageBox.Ignore:
+                fontWarningsEnabled = False
     
-print "\nFont set:"
-print font
+#print "\nFont set:"
+#print globals.font
+
+# Die if there are no fonts
+if len(globals.font) == 0:
+    msgBox = QMessageBox()
+    msgBox.setWindowTitle("LEDgoes PC Interface")
+    msgBox.setText("Fatal error; cannot start")
+    msgBox.setInformativeText("No fonts were successfully loaded from the working directory of LEDgoes PC Interface.  Font files (*.ledfont) can be downloaded from http://www.ledgoes.com.")
+    msgBox.setStandardButtons(QMessageBox.Ok)
+    msgBox.setDefaultButton(QMessageBox.Ok)
+    msgBox.setIcon(QMessageBox.Critical)
+    ret = msgBox.exec_()
+    sys.exit(0)
 
 # This function finds the name of all serial ports and adds them to our lists
 def serial_ports(mainWindow):
-    print "\nScanning for serial ports..."
+    console.cwrite("\nScanning for serial ports...")
     if os.name == 'nt':
         # windows
         #for i in range(256):
@@ -315,25 +199,25 @@ def serial_ports(mainWindow):
     else:
         # unix
         for port in list_ports.comports():
-	    print "TODO: Add this to the list:", port[0]
+	    console.cwrite("TODO: Add this to the list: " + port[0])
     
 def serialSendEx(debugMsg, serialMsg, delay):
-    global outputThread, evt, evtDefinition
-    print debugMsg
+    global outputThread
+    #console.cwrite(debugMsg + " " + serialMsg)
+    console.cwrite(debugMsg)
     try:
         if outputThread.isAlive():
             # If the output thread is alive, let that thread handle the IO
             # define the message: control mode flag FF, instruction 80, chip ID 80 (chip ID doesn't matter in this case)
-            evtDefinition = {'message': serialMsg, 'delay': delay}
-            evt.clear()      # clear the event flag to indicate it should branch before further updates
+            globals.evtDefinition = {'message': serialMsg, 'delay': delay}
+            globals.evt.clear()      # clear the event flag to indicate it should branch before further updates
         else:
             # Raise an exception so we send the commands over serial anyway
             raise
     except:
-        global cxn1
-        print "Output thread is dead.  Will now open serial port manually."
+        console.cwrite("Output thread is dead.  Will now open serial port manually.")
         try:
-            cxn1.write(serialMsg)
+            globals.cxn1.write(serialMsg)
         except Exception as ex:
             #print "Error writing to the selected port; perhaps it is closed.  Will try opening it.  Details:", ex
             # TODO FIXME: Port name should be determined from an array of rowNum -> COM port
@@ -341,21 +225,21 @@ def serialSendEx(debugMsg, serialMsg, delay):
                 cxn = serial.Serial(mw.ui.selRow1COM.currentText())
                 cxn.write(serialMsg)
             except Exception as ex:
-                print "There was a problem opening the selected port (%s) and writing the desired message.  Please make sure you have a working COM port selected.\n" % mw.ui.selRow1COM.currentText()
-                print "Details:", ex
+                console.cwrite("There was a problem opening the selected port (%s) and writing the desired message.  Please make sure you have a working COM port selected.\n" % mw.ui.selRow1COM.currentText())
+                console.cwrite("Details:", ex)
                 cxn.close()
                 return
-            print "Finished writing the desired message.\n"
+            console.cwrite("Finished writing the desired message.\n")
             cxn.close()
         
 def _updateBoards(numBoards):
-    global boards
-    boards.clear()              # empty the list of board indexes
-    delta = 1024 / numBoards    # the auto-address line on each board should be equal to (1024 / # boards) * i
+    globals.boards.clear()              # empty the list of board indexes
+    #globals.boards.extend(range(0, 32))
+    delta = 1024 / numBoards            # the auto-address line on each board should be equal to (1024 / # boards) * i
     for i in range(0, numBoards):
-        boards.extend([int( delta * i / 16 )])
+        globals.boards.extend([int( delta * i / 16 )])
 
-def isValidBoardAddress(inputContainer, lowBound=128):
+def isValidBoardAddress(inputContainer):
     number = 0
     # if the number is False, return 0
     if inputContainer.toPlainText() is False:
@@ -366,18 +250,19 @@ def isValidBoardAddress(inputContainer, lowBound=128):
         try:
             number = int(inputContainer.toPlainText(), 16)
         except:              # number is not valid in decimal or hex
-            print "Error: Chip address \"%s\" is not valid.  The address must be a number between %d and 255 inclusive.\n" % (inputContainer.toPlainText(), lowBound)
+            console.cwrite("Error: Address \"%s\" is not valid.  A board address is an integer ranging from 0 through 63; chip addresses exist from 128 through 255.\n" % inputContainer.toPlainText())
             return None
     except Exception as ex:  # something else besides a ValueError happened, so likely the input is garbage
-        print "There was a general error while making sure the chip address is numeric.  Details:", ex
+        console.cwrite("There was a general error while making sure the chip address is numeric.  Details:", ex)
         return None
-    if number >= lowBound and number < 256:
-        return number        # the board ID is valid (0x80 - 0xFF)
+    if number >= 0 and number < 256:
+        if number < 64 or number > 127:
+            return number
     # If we're here, the chip ID is invalid
-    print "Error: Chip address \"%d\" is not valid.  The address must be between %d and 255 inclusive.\n" % (number, lowBound)
+    console.cwrite("Error: Address \"%d\" is not valid.  Valid board addresses range from 0 through 63; valid chip addresses are 128 through 255.\n" % number)
     return None
 
-    
+
 # This class represents our main window, and runs functions to initialize it
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -389,33 +274,62 @@ class MainWindow(QMainWindow):
 
         # Make some local modifications.
         [self.ui.selSpeed.addItem(rate) for rate in baudRates]
+        self.ui.txtMessage.setTextColor(Qt.GlobalColor(18))
         
-        # Set up the delay variable with the value from the UI, in case anyone changes the spin box's default value
-        delay = self.ui.spinUpdateDelay.value() * 0.001
+        # Set up particular globals variables with their values from the UI, in case anyone changes the default values
+        globals.delay = self.ui.spinUpdateDelay.value() * 0.001
+        globals.msgLimit = self.ui.spinMsgLimit.value()
+        globals.uiMsgList = self.ui.rawTextList
 
         # Connect up the UI elements to event listeners.
         # Main panels on top
         self.ui.selSpeed.activated.connect(self.updateSpeed)
         self.ui.btnConnectRow1.clicked[()].connect(lambda row=1: self.toggleRow(row))
         self.ui.btnConnectRow2.clicked[()].connect(lambda row=2: self.toggleRow(row))
+        self.ui.btnOpenConsole.clicked.connect(self.openConsole)
         self.ui.spinUpdateDelay.valueChanged.connect(self.updateDelay)
         self.ui.spinPanelsPerRow.valueChanged.connect(self.updateBoards)
         # Raw Text panel
+        self.ui.btnDeleteRawText.clicked.connect(self.deleteMessage)
+        self.ui.btnInsertRawTextBefore.clicked[()].connect(lambda direction=0: self.insertMessage(direction))
+        self.ui.btnInsertRawTextAfter.clicked[()].connect(lambda direction=1: self.insertMessage(direction))
+        self.ui.spinMsgLimit.valueChanged.connect(self.updateMsgLimit)
+        self.ui.btnGreen.clicked.connect(self.setGreen)
+        self.ui.btnRed.clicked.connect(self.setRed)
+        self.ui.btnYellow.clicked.connect(self.setYellow)
         self.ui.btnPush.clicked.connect(self.pushMessage)
         # Twitter Feed panel
         self.ui.btnTwitterAuth.clicked.connect(self.twitterAuth)
         self.ui.btnTwitterStream.clicked.connect(self.twitterStream)
         # Animation panel
-        self.ui.btnAnim.clicked[()].connect(lambda idContainer=self.ui.txtChipIDIncr: self.excrementChipID(idContainer, 1))
+        self.ui.btnAnim.clicked.connect(self.showAnimation)
         # Firmware panel
+        self.ui.btnShowTestPattern.clicked[()].connect(lambda idContainer=self.ui.txtTestOn: self.showTestPatternOn(idContainer))
+        self.ui.btnStopGuessing.clicked[()].connect(lambda id=64: self.showTestPatternOn(id))
         self.ui.btnResetChipIDs.clicked.connect(self.resetChipIDs)
         self.ui.btnIncrementChipID.clicked[()].connect(lambda idContainer=self.ui.txtChipIDIncr: self.excrementChipID(idContainer, 1))
         self.ui.btnDecrementChipID.clicked[()].connect(lambda idContainer=self.ui.txtChipIDDecr: self.excrementChipID(idContainer, -1))
         self.ui.btnSetChipID.clicked[()].connect(lambda oldIdContainer=self.ui.txtChipIDCurrent, newIdContainer=self.ui.txtChipIDDesired: self.setChipID(oldIdContainer, newIdContainer))
-        self.ui.btnShowTestPattern.clicked[()].connect(lambda idContainer=self.ui.txtTestOn: self.showTestPatternOn(idContainer))
-        self.ui.btnStopGuessing.clicked[()].connect(lambda id=64: self.showTestPatternOn(id))
+        self.ui.btnSaveChipID.clicked[()].connect(lambda idContainer=self.ui.txtSaveOn: self.saveChipID(idContainer))
+        self.ui.btnSaveAllIDs.clicked.connect(self.saveAllIDs)
+        self.ui.btnCompressChipIDs.clicked.connect(self.compressChipIDs)
         # Simulator panel
         # Baud Rate panel
+        self.ui.spinBaudRatePanels.valueChanged.connect(self.updateTargetBaudRate)
+        self.ui.spinBaudRateScrollRate.valueChanged.connect(self.updateTargetBaudRate)
+    
+    # @Override
+    # Triggers when the main window is closed by the user.  Initiates graceful application shutdown.
+    def closeEvent(self, event):
+        global outputThread
+        globals.exitFlag = True
+        try:
+            outputThread.join()
+        except:
+            pass
+        globals.cxn1.close()
+        globals.cxn2.close()
+        sys.exit(0)
         
     def updateSpeed(self, speed):
         global baudRateIdx
@@ -423,28 +337,28 @@ class MainWindow(QMainWindow):
         
     def toggleRow(self, rowNum):
         'When either of the connect/disconnect buttons are clicked, this method toggles the appropriate serial state'
-        global cxn1, cxn2, activeConns, outputThread, exitFlag
+        global activeConns, outputThread
         portName = str(self.ui.selRow1COM.currentText()) if (rowNum == 1) else str(self.ui.selRow2COM.currentText())
         
         # First, toggle the connection states
         if rowNum == 1:
-            if cxn1.isOpen():
+            if globals.cxn1.isOpen():
                 # Close an active connection
-                cxn1.close()
+                globals.cxn1.close()
                 activeConns -= 1
                 self.ui.btnConnectRow1.setText("Connect")
             else:
                 # Open a new connection at 9600 baud; we'll account for the user-defined baud rate in serialWelcome()
-                cxn1 = serial.Serial(portName, 9600)
+                globals.cxn1 = serial.Serial(portName, 9600)
                 activeConns += 1
                 self.ui.btnConnectRow1.setText("Disconnect")
         elif rowNum == 2:
-            if cxn2.isOpen():
-                cxn2.close()
+            if globals.cxn2.isOpen():
+                globals.cxn2.close()
                 activeConns -= 1
                 self.ui.btnConnectRow2.setText("Connect")
             else:
-                cxn1 = serial.Serial(portName)
+                globals.cxn1 = serial.Serial(portName)
                 activeConns += 1
                 self.ui.btnConnectRow2.setText("Disconnect")
                 
@@ -453,37 +367,81 @@ class MainWindow(QMainWindow):
         
         # TODO: Don't assume we're using just one row
         if activeConns == 1:
-            serialWelcome()
+            serialWelcome("scroll")
         elif activeConns == 0:
-            exitFlag = 1;
+            globals.exitFlag = 1;
             try:
-                print "Stopping IO thread..."
+                console.cwrite("Stopping IO thread...")
                 outputThread.join();
-                exitFlag = 0;
+                globals.exitFlag = 0;
                 outputThread = None;
-                print "IO thread stopped!"
+                console.cwrite("IO thread stopped!")
             except AttributeError:
-                print "Thread was probably already stopped"
-                
+                console.cwrite("Thread was probably already stopped")
+
+    def openConsole(self, event):
+        console.openConsole()
+
     def updateDelay(self, event):
-        global delay
-        delay = event * 0.001
-        
+        globals.delay = event * 0.001
+
     def updateBoards(self, event):
         # event contains the number of boards the user says is in the matrix
+        self.ui.spinBaudRatePanels.setValue(event)
         _updateBoards(event)
-        
+
+    def deleteMessage(self, event):
+        # delete the message from the UI list
+        for SelectedItem in self.ui.rawTextList.selectedItems():
+            self.ui.rawTextList.takeItem(self.ui.rawTextList.row(SelectedItem))
+        # Reconstruct the global list by pulling out "formattedText" from the UI list objects
+        globals.richMsgs = [x.formattedText for x in self.ui.rawTextList.findItems('.*', Qt.MatchRegExp)]
+        # If nothing's left, make sure we at least have the "Awaiting Messages" message to scroll
+        if len(globals.richMsgs) == 0:
+            globals.richMsgs = globals.initMsgs
+
+    def insertMessage(self, direction):
+        # Make the item
+        item = RawTextItem(QIcon.fromTheme("edit-undo"), self.ui.txtMessage.toHtml(), None, 0)
+        # Add it using the insertItem() function
+        # TODO FIXME: If we ever support multi-select, this'll need to be examined closer
+        for SelectedItem in self.ui.rawTextList.selectedItems():
+            self.ui.rawTextList.insertItem(self.ui.rawTextList.row(SelectedItem) + direction, item)
+        # Reconstruct the global list by pulling out "formattedText" from the UI list objects
+        globals.richMsgs = [x.formattedText for x in self.ui.rawTextList.findItems('.*', Qt.MatchRegExp)]
+
+    def updateMsgLimit(self, event):
+        globals.msgLimit = event
+
+    def setGreen(self, event):
+        # Set the rich text editor to write in green and/or set selected text to green
+        self.ui.txtMessage.setTextColor(Qt.GlobalColor(14))
+        self.ui.txtMessage.setFocus()
+
+    def setRed(self, event):
+        # Set the rich text editor to write in red and/or set selected text to red
+        self.ui.txtMessage.setTextColor(Qt.GlobalColor(7))
+        self.ui.txtMessage.setFocus()
+
+    def setYellow(self, event):
+        # Set the rich text editor to write in yellow and/or set selected text to yellow
+        self.ui.txtMessage.setTextColor(Qt.GlobalColor(18))
+        self.ui.txtMessage.setFocus()
+
     def pushMessage(self, event):
-        print event
-        # TODO: Show the new message on our UI
-        # Put the message on our message stack
-        print "Attempting to add message:", self.ui.txtMessage.toPlainText()
-        if globals.richMsgs[0] != introMsg:
-            globals.richMsgs.append(self.ui.txtMessage.toPlainText())
-        else:
-            globals.richMsgs[0] = self.ui.txtMessage.toPlainText()
-        print globals.richMsgs
-        
+        if self.ui.txtMessage.toPlainText() == "":
+            msgBox = QMessageBox()
+            msgBox.setWindowTitle("LEDgoes PC Interface")
+            msgBox.setText("Error: No empty messages allowed")
+            msgBox.setInformativeText("You cannot push an empty message onto the stack.")
+            msgBox.setStandardButtons(QMessageBox.Ok)
+            msgBox.setDefaultButton(QMessageBox.Ok)
+            msgBox.setIcon(QMessageBox.Warning)
+            ret = msgBox.exec_()
+            return
+        globals.pushMsg("raw-text", self.ui.txtMessage.toPlainText(), self.ui.txtMessage.toHtml(), self.ui.isSticky.isChecked())
+        self.ui.txtMessage.setText("")
+
     def twitterAuth(self, event):
         global twitterApi
         twitterApi = LEDgoesTwitter.twitterAuth(
@@ -492,60 +450,148 @@ class MainWindow(QMainWindow):
             self.ui.txtTwitterTokenKey.toPlainText(),
             self.ui.txtTwitterTokenSecret.toPlainText()
         )
-    
+        if twitterApi is None:
+            console.cwrite("Failed to store Twitter authentication credentials")
+        else:
+            console.cwrite("Authentication parameters stored successfully.  The credentials will be verified when you click on Start.")
+
     def twitterStream(self, event):
-        LEDgoesTwitter.twitterStream(self.ui.txtTwitterSearch.toPlainText())
-        
+        twitterThreadIsOn = LEDgoesTwitter.twitterStream(self.ui.txtTwitterSearch.toPlainText())
+        if twitterThreadIsOn:
+            self.ui.btnTwitterStream.setText("Stop")
+        else:
+            self.ui.btnTwitterStream.setText("Start")
+
     def showAnimation(self, animFileContainer):
-        path = "C:\\Users\\Stephen\\Videos\\LEDgoes_anim.gif"
-        results = analyzeImage(path)
-        processImage(path, results)
+        path = self.ui.txtGIFPath.toPlainText()
+        results = ImRts.analyzeImage(path)
+        console.cwrite("Returned results: %s" % results)
+        # FIXME: if results is messed up, don't run the next line
+        # processImage returns a tuple of deques containing frames for each band
+        globals.animTuple = ImRts.processImage(path, results)
+        console.cwrite("Animation loaded successfully.")
+        # Scrolling thread needs to be stopped if it was initialized already
+        try:
+            console.cwrite("Stopping IO thread...")
+            outputThread.join();
+            globals.exitFlag = 0;
+            outputThread = None;
+            console.cwrite("IO thread stopped!")
+        except:
+            console.cwrite("Thread was probably already stopped")
+        # Now get the animation thread going
+        portName = str(self.ui.selRow1COM.currentText())
+        globals.cxn1 = serial.Serial(portName, 9600)
+        serialWelcome("animation")
 
     def resetChipIDs(self, event):
         serialSendEx("Resetting chip IDs...", "\xFF\x81\x00", 2)
+
+    def saveChipID(self, chipIdContainer):
+        # Validate the input
+        chipAddr = isValidBoardAddress(chipIdContainer)
+        if chipAddr is None: return
+        if chipAddr < 64:
+            debugMsg = "Saving chip addresses on board %d..." % chipAddr
+            serialSendEx(debugMsg, "\xFF\x85" + chr(int(chipAddr + 128)) + "\xFF\x85" + chr(int(chipAddr + 192)), 2)
+        elif chipAddr > 127:
+            debugMsg = "Saving chip address %d to the chip..." % chipAddr
+            serialSendEx(debugMsg, "\xFF\x85" + chr(int(chipAddr)), 2)
+
+    def saveAllIDs(self, event):
+        for i in range(128, 256):
+            serialSendEx("Saving chip ID " + i.__str__() + " to the chip...", "\xFF\x85" + chr(i), 0.002)
+        console.cwrite("Done saving all chip IDs.  Sorry for all the messages; we'll reduce the extraneous output later.")
+
+    def compressChipIDs(self, event):
+        boardCount = len(globals.boards)
+        for i in range(1, boardCount):
+            serMsg = ""
+            for j in range(globals.boards[i - 1] + 1, globals.boards[i] + 1):
+                serMsg += "\xFF\x84" + chr(j + 0x80) + chr(i + 0x80)
+                serMsg += "\xFF\x84" + chr(j + 0xC0) + chr(i + 0xC0)
+            serialSendEx("Compressing chip IDs...", serMsg, 2)
+            #sleep(0.5)
+        startWith = isValidBoardAddress(self.ui.txtCompressStartFrom)
+        if startWith is None:
+            startWith = 0
+        msgIndexes = [i % 64 for i in range(startsWith, startsWith + boardCount)]
+        serMsg = ""
+        for i in range(startWith + boardCount - 1, startWith - 1, -1):
+            serMsg += "\xFF\x84" + chr((i - boardCount) + 0x80) + chr(i + 0x80)
+            serMsg += "\xFF\x84" + chr((i - boardCount) + 0xC0) + chr(i + 0xC0)
+        serialSendEx("Resetting chip IDs...", serMsg, 2)
 
     def excrementChipID(self, chipIdContainer, direction):
         # Validate the input
         chipAddr = isValidBoardAddress(chipIdContainer)
         if chipAddr is None: return
-        if direction == 1:
-            debugMsg = "Incrementing chip address %d..." % chipAddr
-            serialSendEx(debugMsg, "\xFF\x82" + chr(int(chipAddr)), 2)
-        elif direction == -1:
-            debugMsg = "Decrementing chip address %d..." % chipAddr
-            serialSendEx(debugMsg, "\xFF\x83" + chr(int(chipAddr)), 2)
+        if chipAddr < 64:
+            if direction == 1:
+                debugMsg = "Incrementing chips on board %d..." % chipAddr
+                serialSendEx(debugMsg, "\xFF\x82" + chr(int(chipAddr + 128)) + "\xFF\x82" + chr(int(chipAddr + 192)), 2)
+            elif direction == -1:
+                debugMsg = "Decrementing chips on board %d..." % chipAddr
+                serialSendEx(debugMsg, "\xFF\x83" + chr(int(chipAddr + 128)) + "\xFF\x83" + chr(int(chipAddr + 192)), 2)
+        elif chipAddr > 127:
+            if direction == 1:
+                debugMsg = "Incrementing chip address %d..." % chipAddr
+                serialSendEx(debugMsg, "\xFF\x82" + chr(int(chipAddr)), 2)
+            elif direction == -1:
+                debugMsg = "Decrementing chip address %d..." % chipAddr
+                serialSendEx(debugMsg, "\xFF\x83" + chr(int(chipAddr)), 2)
         
     def setChipID(self, oldBoardIdContainer, newBoardIdContainer):
         # Validate the input
         oldBoardAddr = isValidBoardAddress(oldBoardIdContainer)
         newBoardAddr = isValidBoardAddress(newBoardIdContainer)
         if (oldBoardAddr is None) or (newBoardAddr is None): return
-        debugMsg = "Setting board address %d to be %d..." % (oldBoardAddr, newBoardAddr)
-        serialSendEx(debugMsg, "\xFF\x84" + chr(int(oldBoardAddr)) + chr(int(newBoardAddr)), 2)
+        # Do some additional validation
+        if (oldBoardAddr < 64 and newBoardAddr >= 64) or (oldBoardAddr >= 64 and newBoardAddr < 64):
+            console.cwrite("When changing IDs for a board, the current value and desired value must be each less than 64.")
+            return
+        if (oldBoardAddr < 64):
+            debugMsg = "Setting board address %d to be %d..." % (oldBoardAddr, newBoardAddr)
+            serialSendEx(debugMsg,
+                         "\xFF\x84" + chr(int(oldBoardAddr) + 128) + chr(int(newBoardAddr) + 128) + 
+                         "\xFF\x84" + chr(int(oldBoardAddr) + 192) + chr(int(newBoardAddr) + 192),
+                         2)
+        elif (oldBoardAddr > 127):
+            debugMsg = "Setting chip address %d to be %d..." % (oldBoardAddr, newBoardAddr)
+            serialSendEx(debugMsg, "\xFF\x84" + chr(int(oldBoardAddr)) + chr(int(newBoardAddr)), 2)
         
     def showTestPatternOn(self, boardIdContainer):
         # Validate the input
-        print boardIdContainer
-        boardAddr = isValidBoardAddress(boardIdContainer, 0) if (boardIdContainer != 64) else 64
+        boardAddr = isValidBoardAddress(boardIdContainer) if (boardIdContainer != 64) else 64
         if boardAddr is None: return
         if (boardAddr < 64):
-            debugMsg = "Showing test pattern on board ID %s (chip addresses %d and %d..." % (boardAddr, boardAddr + 128, boardAddr + 192)
+            debugMsg = "Showing test pattern on board ID %s (chip addresses %d and %d)..." % (boardAddr, boardAddr + 128, boardAddr + 192)
             serialSendEx(debugMsg, "\xFF\x80" + chr(int(boardAddr)), 5)
         elif (boardAddr < 128):
             serialSendEx("Showing test pattern on all boards...", "\xFF\x80" + chr(int(boardAddr)), 5)
         elif (boardAddr < 256):
             debugMsg = "Showing test pattern on chip ID %s..." % boardAddr
             serialSendEx(debugMsg, "\xFF\x80" + chr(int(boardAddr)), 5)
+            
+    def updateTargetBaudRate(self, event):
+        numPanels = self.ui.spinBaudRatePanels.value()
+        maxRefresh = self.ui.spinBaudRateScrollRate.value()
+        for baud in baudRates:
+            if (int(baud) / (numPanels * 96) > maxRefresh):
+                self.ui.lblTargetBaudRate.setText(baud)
+                break
+            else:
+                self.ui.lblTargetBaudRate.setText("Unsupported")
     
 
 ################################################################################
 # Step 3. Launch the app
 ################################################################################    
 
-app = QApplication(sys.argv)	    
 mw = MainWindow()
 # Add our serial ports.
 serial_ports(mw)
 mw.show()
-print "\nApplication is loaded."
+console.cwrite("\nApplication is loaded.")
+globals.pushMessage = mw.pushMessage
 sys.exit(app.exec_())

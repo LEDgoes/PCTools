@@ -1,6 +1,8 @@
 import LEDgoesGlobals as globals
 import threading
 import twitter
+# Import the window used for helping debug the marquee & the software
+import LEDgoesConsole as console
 
 twitterEvt = threading.Event()   # Thread will check if the event has gone to False, and then wait
 twitterEvt.set()                 # Standard Python events allow threads to continue running if event flag is set
@@ -9,7 +11,7 @@ twitterEvt.set()                 # Standard Python events allow threads to conti
 class twitterStreamThread (threading.Thread):
     def __init__(self):
         super(twitterStreamThread, self).__init__()
-        print "Twitter thread is now running; when it stops may not necessarily be advertised..."
+        console.cwrite("Twitter thread is now running; when it stops may not necessarily be advertised...")
     
     def run(self):
         global twitterApi, twitterProperties, twitterEvt
@@ -19,20 +21,18 @@ class twitterStreamThread (threading.Thread):
             if item.has_key('text'):
                 try:
                     # Output all Tweets including language
-                    print "===== %s " % item['lang']
-                    print item['text']
+                    console.cwrite("===== %s " % item['lang'])
+                    console.cwrite(item['text'])
                     # Display only English tweets (change as you see fit)
                     if item['lang'] == "en":
-                        tweetText = "@%s %s" % (item['user']['screen_name'], item['text'])
-                        try:
-                            globals.richMsgs[curIndex] = tweetText
-                        except:
-                            globals.richMsgs.append(tweetText)
-                        curIndex = (curIndex + 1) % maxTweets
+                        rawTweetText = '@%s %s' % (item['user']['screen_name'], item['text'])
+                        formattedTweetText = '<span style=" color:#ff0000;">@%s </span><span style=" color:#808000;">%s</span>' % (item['user']['screen_name'], item['text'])
+                        globals.pushMsg("twitter", rawTweetText, globals.html % formattedTweetText, False)
                 except Exception as ex:
-                    print ex
+                    console.cwrite(ex)
             if not twitterEvt.is_set():
-                print "Twitter stream shut down!"
+                console.cwrite("Twitter stream shut down!")
+                twitterEvt.set()
                 return
 
 
@@ -49,16 +49,18 @@ def twitterStream(properties):
     global twitterThread
     try:
         if twitterThread.isAlive():
-            print "Shutting down Twitter stream..."
+            console.cwrite("Shutting down Twitter stream...")
             twitterEvt.clear()
-        else:
-            _twitterStart(properties)
+            return False
+        _twitterStart(properties)
+        return True
     except:
         _twitterStart(properties)
+        return True
     
 def _twitterStart(properties):
     global twitterThread, twitterProperties
-    print "Starting Twitter stream with properties %s" % properties
+    console.cwrite("Starting Twitter stream with properties %s" % properties)
     twitterProperties = properties
     twitterThread = twitterStreamThread()
     twitterThread.start()        
