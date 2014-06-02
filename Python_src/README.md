@@ -1,6 +1,6 @@
 This is the Python source code for the LEDgoes PC Tools application.
 
-Windows installer: LEDgoes Setup.msi
+Windows standalone installer: LEDgoes Setup.msi
 
 Other platforms can run the software with Python 2.7.6:
 
@@ -13,6 +13,7 @@ DRIVERS:
 To run LEDgoes from a USB Communicator, you will need drivers for the FTDI Chip so it appears as a Virtual COM Port.  Obtain these from http://www.ftdichip.com/Drivers/VCP.htm
 
 REQUIREMENTS/DEPENDENCIES:
+(You will not need to worry about these if using the Windows installer:)
 
 * Qt5
 * python-twitter
@@ -47,7 +48,6 @@ Twitter => LEDgoes
 
 Once you have done this, click the "Authenticate" button on the LEDgoes PC Tools.  You should now be authenticated on Twitter.  Now, enter a Twitter hashtag, handle, or phrase into the box at the bottom and hit "Start".  When you wish to stop receiving Tweets, hit the "Start" button again and upon receiving one more Tweet, it will stop.
 
-<<<<<<< HEAD
 Twitter mode is set to rely on a circular buffer that can contain a user-defined number of messages (you set this number in the "Message Limit" field on the Raw Text tab.  The buffer will fill all message slots before overwriting earlier messages.  If the marquee does not scroll through all of the queued messages by the time the maximum messages are received through the Twitter stream, then not all messages will be seen.  Also, the program is currently set to display Tweets in English only; this is easily changeable in the code.
 
 The Twitter API allows users to customize their stream to look for multiple keywords/hashtags/handles and filter by location.  Currently our user interface only allows you to filter by one keyword.  You can add more filters in the code.  Eventually we will devise an interface to allow users to add all the desired filters.
@@ -61,15 +61,6 @@ This is still a bit hacky.  Input the path to a GIF image in the appropriate tex
 The reason this is still hacky is because the code is set up to display an animation 4 boards * 2 rows in size, and the board IDs must be 56-59 on the bottom row from left to right and 60-63 on the top row.  If you have a GIF of a different size, you will need to change the code.
 
 Since LEDgoes only displays one shade of red, green, and yellow, GIFs are interpreted in this manner: Any RGB pixel with a red value > 127 (#7F0000) will show as red on the marquee.  Any RGB pixel with a green value > 127 (#007F00) will show as green on the marquee.  If both red & green are greater than 127 (#7F7F00), then the marquee will illuminate that pixel as yellow.  The digits for blue are ignored, and reserved for future use in an RGB-compatible program.
-=======
-Currently, the LEDgoes Default Font does not understand lowercase characters, nor will the program transform lowercase characters into uppercase characters.  This will be fixed in a future revision of the font & program.  You are welcome to make these changes yourself.
-
-Twitter mode is set to rely on a circular buffer that can contain 10 messages.  The buffer will fill all 10 message slots before overwriting earlier messages.  If the marquee does not scroll through all 10 messages by the time 10 messages are received through the Twitter stream, then not all messages will be seen.  Also, the program is currently set to display Tweets in English only; this is easily changeable in the code.
-
-The Twitter API allows users to customize their stream to look for multiple keywords/hashtags/handles and filter by location.  Currently our user interface only allows you to filter by one keyword.  You can add more filters in the code.  Eventually we will devise an interface to allow users to add all the desired filters.
-
-Finally, when using Twitter with LEDgoes, it is not recommended to use Raw Text to transmit messages at the same time.  With a fast-moving Twitter stream, your message will probably get wiped out before the marquee even refreshes what messages it will display.  This is another issue that will probably get cleaned up in a future release.
->>>>>>> d7c046728ef1ec077bce69037e6f178c7939e4ff
 
 FONTS:
 
@@ -109,13 +100,8 @@ ERRATA:
 
 ENHANCEMENT WISHLIST:
 
-<<<<<<< HEAD
 * Animations (Different sizes, BMP frames, AVI movies)
 * Enhance Twitter interactions & stream customizations for different languages & character sets
-=======
-* Animations (GIF, BMP frames, AVI movies)
-* Enhance Twitter interactions & stream customizations
->>>>>>> d7c046728ef1ec077bce69037e6f178c7939e4ff
 * Read from an RSS feed
 * Proper Rich Text box to handle different fonts & colors in the same message
 * Implementation of remaining control signals understood by the firmware to do debugging/development
