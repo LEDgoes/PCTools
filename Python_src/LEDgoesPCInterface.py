@@ -29,8 +29,9 @@ from LEDgoesForm import Ui_MainWindow
 import os
 import serial
 # find ports among the different operating systems
-from serial.tools import list_ports     # Linux
-import win32file                        # Windows
+from serial.tools import list_ports     # Linux (all OSes have this but it's really slow in Windows)
+if os.name == "nt":
+    import win32file                    # Windows
 import re                               # In Windows, we need to search for "COM\d", thus we need regex support
 # import this to help find fonts
 import glob
@@ -53,7 +54,7 @@ from LEDgoesRawTextItem import RawTextItem
 # Step 1. Define the QApplication so we can start building GUI widgets
 ################################################################################
 
-app = QApplication(sys.argv)	    
+app = QApplication(sys.argv)
 app.setWindowIcon(QIcon('LEDgoes-Icon.ico'))
 
 ################################################################################
@@ -183,23 +184,15 @@ if len(globals.font) == 0:
 def serial_ports(mainWindow):
     console.cwrite("\nScanning for serial ports...")
     if os.name == 'nt':
-        # windows
-        #for i in range(256):
-        #    try:
-        #        s = serial.Serial(i)
-        #        mainWindow.ui.selRow1COM.addItem("COM" + str(i + 1))
-        #        mainWindow.ui.selRow2COM.addItem("COM" + str(i + 1))
-        #        s.close()
-        #    except serial.SerialException as ex:
-        #        pass
-		comPorts = [device for device in win32file.QueryDosDevice(None).split("\x00") if re.search("^COM\d+$", device)]
-		comPorts.sort()
-		[mainWindow.ui.selRow1COM.addItem(comPort) for comPort in comPorts]
-		[mainWindow.ui.selRow2COM.addItem(comPort) for comPort in comPorts]
+        # Windows
+        comPorts = [device for device in win32file.QueryDosDevice(None).split("\x00") if re.search("^COM\d+$", device)]
+        comPorts.sort()
+        [mainWindow.ui.selRow1COM.addItem(comPort) for comPort in comPorts]
+        [mainWindow.ui.selRow2COM.addItem(comPort) for comPort in comPorts]
     else:
-        # unix
-        for port in list_ports.comports():
-	    console.cwrite("TODO: Add this to the list: " + port[0])
+        # Everyone else
+        [mainWindow.ui.selRow1COM.addItem(comPort[0]) for comPort in list_ports.comports()]
+        [mainWindow.ui.selRow2COM.addItem(comPort[0]) for comPort in list_ports.comports()]
     
 def serialSendEx(debugMsg, serialMsg, delay):
     global outputThread
@@ -242,15 +235,15 @@ def _updateBoards(numBoards):
 def isValidBoardAddress(inputContainer):
     number = 0
     # if the number is False, return 0
-    if inputContainer.toPlainText() is False:
+    if inputContainer.text() is False:
         return 0
     try:                     # first, try the number in Base 10
-        number = int(inputContainer.toPlainText())
+        number = int(inputContainer.text())
     except ValueError:       # now try it in hex (Base 16)
         try:
-            number = int(inputContainer.toPlainText(), 16)
+            number = int(inputContainer.text(), 16)
         except:              # number is not valid in decimal or hex
-            console.cwrite("Error: Address \"%s\" is not valid.  A board address is an integer ranging from 0 through 63; chip addresses exist from 128 through 255.\n" % inputContainer.toPlainText())
+            console.cwrite("Error: Address \"%s\" is not valid.  A board address is an integer ranging from 0 through 63; chip addresses exist from 128 through 255.\n" % inputContainer.text())
             return None
     except Exception as ex:  # something else besides a ValueError happened, so likely the input is garbage
         console.cwrite("There was a general error while making sure the chip address is numeric.  Details:", ex)
@@ -284,15 +277,15 @@ class MainWindow(QMainWindow):
         # Connect up the UI elements to event listeners.
         # Main panels on top
         self.ui.selSpeed.activated.connect(self.updateSpeed)
-        self.ui.btnConnectRow1.clicked[()].connect(lambda row=1: self.toggleRow(row))
-        self.ui.btnConnectRow2.clicked[()].connect(lambda row=2: self.toggleRow(row))
+        self.ui.btnConnectRow1.clicked.connect(lambda: self.toggleRow(1))
+        self.ui.btnConnectRow2.clicked.connect(lambda: self.toggleRow(2))
         self.ui.btnOpenConsole.clicked.connect(self.openConsole)
         self.ui.spinUpdateDelay.valueChanged.connect(self.updateDelay)
         self.ui.spinPanelsPerRow.valueChanged.connect(self.updateBoards)
         # Raw Text panel
         self.ui.btnDeleteRawText.clicked.connect(self.deleteMessage)
-        self.ui.btnInsertRawTextBefore.clicked[()].connect(lambda direction=0: self.insertMessage(direction))
-        self.ui.btnInsertRawTextAfter.clicked[()].connect(lambda direction=1: self.insertMessage(direction))
+        self.ui.btnInsertRawTextBefore.clicked.connect(lambda: self.insertMessage(0))
+        self.ui.btnInsertRawTextAfter.clicked.connect(lambda: self.insertMessage(1))
         self.ui.spinMsgLimit.valueChanged.connect(self.updateMsgLimit)
         self.ui.btnGreen.clicked.connect(self.setGreen)
         self.ui.btnRed.clicked.connect(self.setRed)
@@ -304,13 +297,13 @@ class MainWindow(QMainWindow):
         # Animation panel
         self.ui.btnAnim.clicked.connect(self.showAnimation)
         # Firmware panel
-        self.ui.btnShowTestPattern.clicked[()].connect(lambda idContainer=self.ui.txtTestOn: self.showTestPatternOn(idContainer))
-        self.ui.btnStopGuessing.clicked[()].connect(lambda id=64: self.showTestPatternOn(id))
+        self.ui.btnShowTestPattern.clicked.connect(lambda: self.showTestPatternOn(self.ui.txtTestOn))
+        self.ui.btnStopGuessing.clicked.connect(lambda: self.showTestPatternOn(64))
         self.ui.btnResetChipIDs.clicked.connect(self.resetChipIDs)
-        self.ui.btnIncrementChipID.clicked[()].connect(lambda idContainer=self.ui.txtChipIDIncr: self.excrementChipID(idContainer, 1))
-        self.ui.btnDecrementChipID.clicked[()].connect(lambda idContainer=self.ui.txtChipIDDecr: self.excrementChipID(idContainer, -1))
-        self.ui.btnSetChipID.clicked[()].connect(lambda oldIdContainer=self.ui.txtChipIDCurrent, newIdContainer=self.ui.txtChipIDDesired: self.setChipID(oldIdContainer, newIdContainer))
-        self.ui.btnSaveChipID.clicked[()].connect(lambda idContainer=self.ui.txtSaveOn: self.saveChipID(idContainer))
+        self.ui.btnIncrementChipID.clicked.connect(lambda: self.excrementChipID(self.ui.txtChipIDIncr, 1))
+        self.ui.btnDecrementChipID.clicked.connect(lambda: self.excrementChipID(self.ui.txtChipIDDecr, -1))
+        self.ui.btnSetChipID.clicked.connect(lambda: self.setChipID(self.ui.txtChipIDCurrent, self.ui.txtChipIDDesired))
+        self.ui.btnSaveChipID.clicked.connect(lambda: self.saveChipID(self.ui.txtSaveOn))
         self.ui.btnSaveAllIDs.clicked.connect(self.saveAllIDs)
         self.ui.btnCompressChipIDs.clicked.connect(self.compressChipIDs)
         # Simulator panel
@@ -445,10 +438,10 @@ class MainWindow(QMainWindow):
     def twitterAuth(self, event):
         global twitterApi
         twitterApi = LEDgoesTwitter.twitterAuth(
-            self.ui.txtTwitterConsumerKey.toPlainText(),
-            self.ui.txtTwitterConsumerSecret.toPlainText(),
-            self.ui.txtTwitterTokenKey.toPlainText(),
-            self.ui.txtTwitterTokenSecret.toPlainText()
+            self.ui.txtTwitterConsumerKey.text(),
+            self.ui.txtTwitterConsumerSecret.text(),
+            self.ui.txtTwitterTokenKey.text(),
+            self.ui.txtTwitterTokenSecret.text()
         )
         if twitterApi is None:
             console.cwrite("Failed to store Twitter authentication credentials")
