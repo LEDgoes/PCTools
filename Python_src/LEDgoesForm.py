@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'LEDgoes PC Interface.ui'
 #
-# Created: Tue Jun  3 21:45:42 2014
+# Created: Wed Jun  4 17:08:05 2014
 #      by: PyQt5 UI code generator 5.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -100,7 +100,7 @@ class Ui_MainWindow(object):
         self.btnInsertRawTextBefore.setObjectName("btnInsertRawTextBefore")
         self.btnInsertRawTextAfter = QtWidgets.QPushButton(self.tabRawText)
         self.btnInsertRawTextAfter.setEnabled(True)
-        self.btnInsertRawTextAfter.setGeometry(QtCore.QRect(260, 60, 91, 23))
+        self.btnInsertRawTextAfter.setGeometry(QtCore.QRect(260, 60, 101, 23))
         self.btnInsertRawTextAfter.setObjectName("btnInsertRawTextAfter")
         self.fontComboBox = QtWidgets.QFontComboBox(self.tabRawText)
         self.fontComboBox.setEnabled(False)
@@ -209,7 +209,7 @@ class Ui_MainWindow(object):
         self.lblFirmwareDescription.setGeometry(QtCore.QRect(10, 10, 571, 16))
         self.lblFirmwareDescription.setObjectName("lblFirmwareDescription")
         self.gridLayoutWidget = QtWidgets.QWidget(self.tabFirmware)
-        self.gridLayoutWidget.setGeometry(QtCore.QRect(10, 40, 571, 227))
+        self.gridLayoutWidget.setGeometry(QtCore.QRect(10, 40, 571, 242))
         self.gridLayoutWidget.setObjectName("gridLayoutWidget")
         self.gridLayout = QtWidgets.QGridLayout(self.gridLayoutWidget)
         self.gridLayout.setContentsMargins(0, 0, 0, 0)
@@ -312,7 +312,7 @@ class Ui_MainWindow(object):
         self.lblFWU.setGeometry(QtCore.QRect(10, 290, 491, 16))
         self.lblFWU.setObjectName("lblFWU")
         self.gridLayoutWidget_2 = QtWidgets.QWidget(self.tabFirmware)
-        self.gridLayoutWidget_2.setGeometry(QtCore.QRect(10, 310, 491, 120))
+        self.gridLayoutWidget_2.setGeometry(QtCore.QRect(10, 310, 491, 131))
         self.gridLayoutWidget_2.setObjectName("gridLayoutWidget_2")
         self.gridLayout_2 = QtWidgets.QGridLayout(self.gridLayoutWidget_2)
         self.gridLayout_2.setContentsMargins(0, 0, 0, 0)
@@ -386,7 +386,7 @@ class Ui_MainWindow(object):
         self.lblBaudRateInstrs.setWordWrap(True)
         self.lblBaudRateInstrs.setObjectName("lblBaudRateInstrs")
         self.gridLayoutWidget_4 = QtWidgets.QWidget(self.tabBaudRate)
-        self.gridLayoutWidget_4.setGeometry(QtCore.QRect(80, 70, 464, 85))
+        self.gridLayoutWidget_4.setGeometry(QtCore.QRect(80, 70, 464, 86))
         self.gridLayoutWidget_4.setObjectName("gridLayoutWidget_4")
         self.gridLayout_4 = QtWidgets.QGridLayout(self.gridLayoutWidget_4)
         self.gridLayout_4.setContentsMargins(0, 0, 0, 0)
@@ -457,7 +457,7 @@ class Ui_MainWindow(object):
         self.spinUpdateDelay.setObjectName("spinUpdateDelay")
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
-        self.menubar.setGeometry(QtCore.QRect(0, 0, 621, 25))
+        self.menubar.setGeometry(QtCore.QRect(0, 0, 621, 22))
         self.menubar.setObjectName("menubar")
         MainWindow.setMenuBar(self.menubar)
         self.statusbar = QtWidgets.QStatusBar(MainWindow)
@@ -532,7 +532,7 @@ class Ui_MainWindow(object):
         self.txtMessage.setHtml(_translate("MainWindow", "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
 "<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
 "p, li { white-space: pre-wrap; }\n"
-"</style></head><body style=\" font-family:\'Ubuntu\'; font-size:11pt; font-weight:400; font-style:normal;\">\n"
+"</style></head><body style=\" font-family:\'Lucida Grande\'; font-size:13pt; font-weight:400; font-style:normal;\">\n"
 "<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-family:\'MS Shell Dlg 2\'; font-size:8pt; color:#808000;\"><br /></p></body></html>"))
         self.btnPush.setToolTip(_translate("MainWindow", "<html><head/><body><p>Adds the message in the composition box to the end of the message queue.</p></body></html>"))
         self.btnPush.setText(_translate("MainWindow", "Push"))
@@ -571,7 +571,7 @@ class Ui_MainWindow(object):
         self.txtGIFPath.setHtml(_translate("MainWindow", "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
 "<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
 "p, li { white-space: pre-wrap; }\n"
-"</style></head><body style=\" font-family:\'Ubuntu\'; font-size:11pt; font-weight:400; font-style:normal;\">\n"
+"</style></head><body style=\" font-family:\'Lucida Grande\'; font-size:13pt; font-weight:400; font-style:normal;\">\n"
 "<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-family:\'MS Shell Dlg 2\'; font-size:8pt;\">C:\\Users\\Stephen\\Videos\\LEDgoes_anim.gif</span></p></body></html>"))
         self.btnAnim.setToolTip(_translate("MainWindow", "<html><head/><body><p>Displays the animation on the marquee.</p></body></html>"))
         self.btnAnim.setText(_translate("MainWindow", "Send"))
