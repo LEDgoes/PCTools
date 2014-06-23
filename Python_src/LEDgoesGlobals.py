@@ -24,6 +24,11 @@ msgLimit = 0              # How many messages can appear on the board before the
 msgToOverwrite = 0        # message to attempt to overwrite if we exceed the msgLimit (will skip to the next one if sticky)
 uiMsgList = 0             # reference to the message list on the UI of "Raw Text"
 
+# This is the new "password" to get into Command Mode
+# It consists of the ASCII for "PassWord" + 0x80 on each letter, plus 0xFF at the end
+# for backward-compatibility with FW version 3.2
+cmdPassword = "\xD0\xE1\xF3\xF3\xD7\xEF\xF2\xE4\xFF"
+
 
 def msgIndexToOverwrite():
     global msgToOverwrite

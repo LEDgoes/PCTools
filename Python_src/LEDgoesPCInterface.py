@@ -100,7 +100,7 @@ def serialWelcome(welcomeType):
     globals.delay = mw.ui.spinUpdateDelay.value() * 0.001
     # At 9600 baud, adjust each board's baud rate to conform to the user's wishes (just in case some were reset)
     if baudRateIdx != 0:
-        serialMsg = "\xFF%s" % chr(0x90 + baudRateIdx)
+        serialMsg = "%s%s" % (globals.cmdPassword, chr(0x90 + baudRateIdx))
         serialSendEx("Sending %s at 9600 baud to change baud rate" % serialMsg, serialMsg, 1)
         sleep(1.2)
     globals.cxn1.close()
@@ -108,7 +108,7 @@ def serialWelcome(welcomeType):
         # the user adjusted the serial rate before, so talk to the boards at their current rate
         globals.cxn1.baudrate = int(prevBaudRate)
         globals.cxn1.open()
-        serialMsg = "\xFF%s" % chr(0x90 + baudRateIdx)
+        serialMsg = "%s%s" % (globals.cmdPassword, chr(0x90 + baudRateIdx))
         debugMsg = "\nSending %s at %s baud to change baud rate" % (serialMsg, baudRates[baudRateIdx])
         serialSendEx(debugMsg, serialMsg, 1)
         prevBaudRate = baudRates[baudRateIdx]
@@ -124,8 +124,8 @@ def serialWelcome(welcomeType):
         tmp = list(globals.boards)
         increments = [x - 1 for x in tmp[1:]]
         for boardID in increments:
-            serialSendEx("", "\xFF\x82" + chr(boardID + 128), 0.001)
-            serialSendEx("", "\xFF\x82" + chr(boardID + 192), 0.001)
+            serialSendEx("", globals.cmdPassword + "\x82" + chr(boardID + 128), 0.001)
+            serialSendEx("", globals.cmdPassword + "\x82" + chr(boardID + 192), 0.001)
     # Start a thread
     if welcomeType == "scroll":
         outputThread = scroll.serialThread()
@@ -478,7 +478,7 @@ class MainWindow(QMainWindow):
         serialWelcome("animation")
 
     def resetChipIDs(self, event):
-        serialSendEx("Resetting chip IDs...", "\xFF\x81\x00", 2)
+        serialSendEx("Resetting chip IDs...", globals.cmdPassword + "\x81\x00", 2)
 
     def saveChipID(self, chipIdContainer):
         # Validate the input
@@ -486,14 +486,14 @@ class MainWindow(QMainWindow):
         if chipAddr is None: return
         if chipAddr < 64:
             debugMsg = "Saving chip addresses on board %d..." % chipAddr
-            serialSendEx(debugMsg, "\xFF\x85" + chr(int(chipAddr + 128)) + "\xFF\x85" + chr(int(chipAddr + 192)), 2)
+            serialSendEx(debugMsg, globals.cmdPassword + "\x85" + chr(int(chipAddr + 128)) + globals.cmdPassword + "\x85" + chr(int(chipAddr + 192)), 2)
         elif chipAddr > 127:
             debugMsg = "Saving chip address %d to the chip..." % chipAddr
-            serialSendEx(debugMsg, "\xFF\x85" + chr(int(chipAddr)), 2)
+            serialSendEx(debugMsg, globals.cmdPassword + "\x85" + chr(int(chipAddr)), 2)
 
     def saveAllIDs(self, event):
         for i in range(128, 256):
-            serialSendEx("Saving chip ID " + i.__str__() + " to the chip...", "\xFF\x85" + chr(i), 0.002)
+            serialSendEx("Saving chip ID " + i.__str__() + " to the chip...", globals.cmdPassword + "\x85" + chr(i), 0.002)
         console.cwrite("Done saving all chip IDs.  Sorry for all the messages; we'll reduce the extraneous output later.")
 
     def compressChipIDs(self, event):
@@ -501,8 +501,8 @@ class MainWindow(QMainWindow):
         for i in range(1, boardCount):
             serMsg = ""
             for j in range(globals.boards[i - 1] + 1, globals.boards[i] + 1):
-                serMsg += "\xFF\x84" + chr(j + 0x80) + chr(i + 0x80)
-                serMsg += "\xFF\x84" + chr(j + 0xC0) + chr(i + 0xC0)
+                serMsg += globals.cmdPassword + "\x84" + chr(j + 0x80) + chr(i + 0x80)
+                serMsg += globals.cmdPassword + "\x84" + chr(j + 0xC0) + chr(i + 0xC0)
             serialSendEx("Compressing chip IDs...", serMsg, 2)
             #sleep(0.5)
         startWith = isValidBoardAddress(self.ui.txtCompressStartFrom)
@@ -511,8 +511,8 @@ class MainWindow(QMainWindow):
         msgIndexes = [i % 64 for i in range(startsWith, startsWith + boardCount)]
         serMsg = ""
         for i in range(startWith + boardCount - 1, startWith - 1, -1):
-            serMsg += "\xFF\x84" + chr((i - boardCount) + 0x80) + chr(i + 0x80)
-            serMsg += "\xFF\x84" + chr((i - boardCount) + 0xC0) + chr(i + 0xC0)
+            serMsg += globals.cmdPassword + "\x84" + chr((i - boardCount) + 0x80) + chr(i + 0x80)
+            serMsg += globals.cmdPassword + "\x84" + chr((i - boardCount) + 0xC0) + chr(i + 0xC0)
         serialSendEx("Resetting chip IDs...", serMsg, 2)
 
     def excrementChipID(self, chipIdContainer, direction):
@@ -522,17 +522,17 @@ class MainWindow(QMainWindow):
         if chipAddr < 64:
             if direction == 1:
                 debugMsg = "Incrementing chips on board %d..." % chipAddr
-                serialSendEx(debugMsg, "\xFF\x82" + chr(int(chipAddr + 128)) + "\xFF\x82" + chr(int(chipAddr + 192)), 2)
+                serialSendEx(debugMsg, globals.cmdPassword + "\x82" + chr(int(chipAddr + 128)) + globals.cmdPassword + "\x82" + chr(int(chipAddr + 192)), 2)
             elif direction == -1:
                 debugMsg = "Decrementing chips on board %d..." % chipAddr
-                serialSendEx(debugMsg, "\xFF\x83" + chr(int(chipAddr + 128)) + "\xFF\x83" + chr(int(chipAddr + 192)), 2)
+                serialSendEx(debugMsg, globals.cmdPassword + "\x83" + chr(int(chipAddr + 128)) + globals.cmdPassword + "\x83" + chr(int(chipAddr + 192)), 2)
         elif chipAddr > 127:
             if direction == 1:
                 debugMsg = "Incrementing chip address %d..." % chipAddr
-                serialSendEx(debugMsg, "\xFF\x82" + chr(int(chipAddr)), 2)
+                serialSendEx(debugMsg, globals.cmdPassword + "\x82" + chr(int(chipAddr)), 2)
             elif direction == -1:
                 debugMsg = "Decrementing chip address %d..." % chipAddr
-                serialSendEx(debugMsg, "\xFF\x83" + chr(int(chipAddr)), 2)
+                serialSendEx(debugMsg, globals.cmdPassword + "\x83" + chr(int(chipAddr)), 2)
         
     def setChipID(self, oldBoardIdContainer, newBoardIdContainer):
         # Validate the input
@@ -546,12 +546,12 @@ class MainWindow(QMainWindow):
         if (oldBoardAddr < 64):
             debugMsg = "Setting board address %d to be %d..." % (oldBoardAddr, newBoardAddr)
             serialSendEx(debugMsg,
-                         "\xFF\x84" + chr(int(oldBoardAddr) + 128) + chr(int(newBoardAddr) + 128) + 
-                         "\xFF\x84" + chr(int(oldBoardAddr) + 192) + chr(int(newBoardAddr) + 192),
+                         globals.cmdPassword + "\x84" + chr(int(oldBoardAddr) + 128) + chr(int(newBoardAddr) + 128) + 
+                         globals.cmdPassword + "\x84" + chr(int(oldBoardAddr) + 192) + chr(int(newBoardAddr) + 192),
                          2)
         elif (oldBoardAddr > 127):
             debugMsg = "Setting chip address %d to be %d..." % (oldBoardAddr, newBoardAddr)
-            serialSendEx(debugMsg, "\xFF\x84" + chr(int(oldBoardAddr)) + chr(int(newBoardAddr)), 2)
+            serialSendEx(debugMsg, globals.cmdPassword + "\x84" + chr(int(oldBoardAddr)) + chr(int(newBoardAddr)), 2)
         
     def showTestPatternOn(self, boardIdContainer):
         # Validate the input
@@ -559,12 +559,12 @@ class MainWindow(QMainWindow):
         if boardAddr is None: return
         if (boardAddr < 64):
             debugMsg = "Showing test pattern on board ID %s (chip addresses %d and %d)..." % (boardAddr, boardAddr + 128, boardAddr + 192)
-            serialSendEx(debugMsg, "\xFF\x80" + chr(int(boardAddr)), 5)
+            serialSendEx(debugMsg, globals.cmdPassword + "\x80" + chr(int(boardAddr)), 5)
         elif (boardAddr < 128):
-            serialSendEx("Showing test pattern on all boards...", "\xFF\x80" + chr(int(boardAddr)), 5)
+            serialSendEx("Showing test pattern on all boards...", globals.cmdPassword + "\x80" + chr(int(boardAddr)), 5)
         elif (boardAddr < 256):
             debugMsg = "Showing test pattern on chip ID %s..." % boardAddr
-            serialSendEx(debugMsg, "\xFF\x80" + chr(int(boardAddr)), 5)
+            serialSendEx(debugMsg, globals.cmdPassword + "\x80" + chr(int(boardAddr)), 5)
             
     def updateTargetBaudRate(self, event):
         numPanels = self.ui.spinBaudRatePanels.value()
