@@ -17,7 +17,7 @@ Any assistance to make this code more "Pythonic" will be greatly welcome.
 '''
 # import things for the application & the GUI framework
 import sys
-from PyQt5.QtWidgets import QApplication, QMainWindow, QMessageBox
+from PyQt5.QtWidgets import QApplication, QMainWindow, QMessageBox, QListWidgetItem
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import Qt
 import LEDgoesGlobals as globals
@@ -29,10 +29,8 @@ from LEDgoesForm import Ui_MainWindow
 import os
 import serial
 # find ports among the different operating systems
-from serial.tools import list_ports     # Linux (all OSes have this but it's really slow in Windows)
-if os.name == "nt":
-    import win32file                    # Windows
-import re                               # In Windows, we need to search for "COM\d", thus we need regex support
+from serial.tools import list_ports     # All OSes have this but it can be really slow in Windows
+# NOTE: There are a couple more Windows-specific imports if the alternate port enumeration method is selected
 # import this to help find fonts
 import glob
 # Import the signal module so we can listen for when the user hits Ctrl+C
@@ -103,7 +101,7 @@ def serialWelcome(welcomeType):
         serialMsg = "%s%s" % (globals.cmdPassword, chr(0x90 + baudRateIdx))
         serialSendEx("Sending %s at 9600 baud to change baud rate" % serialMsg, serialMsg, 1)
         sleep(1.2)
-    globals.cxn1.close()
+    #globals.cxn1.close()
     if baudRates[baudRateIdx] != prevBaudRate and prevBaudRate != "9600":
         # the user adjusted the serial rate before, so talk to the boards at their current rate
         globals.cxn1.baudrate = int(prevBaudRate)
@@ -116,9 +114,9 @@ def serialWelcome(welcomeType):
         globals.cxn1.close()
     
     # Now actually re-open this program's serial connection in the user's desired speed
-    globals.cxn1.baudrate = int(baudRates[baudRateIdx])
-    console.cwrite(globals.cxn1.baudrate)
-    globals.cxn1.open()
+    #globals.cxn1.baudrate = int(baudRates[baudRateIdx])
+    #console.cwrite(globals.cxn1.baudrate)
+    #globals.cxn1.open()
     # Send the serial commands to adjust any board IDs that might be one too low
     if len(globals.boards) < 33:    # Only do this when 32 boards or less are in use
         tmp = list(globals.boards)
@@ -183,18 +181,23 @@ if len(globals.font) == 0:
 # This function finds the name of all serial ports and adds them to our lists
 def serial_ports(mainWindow):
     console.cwrite("\nScanning for serial ports...")
-    if os.name == 'nt':
-        # Windows
+    if os.name == 'nt' and False:
+        # Windows (alternate option)
+        import win32file
+        import re           # So we can search for "COM\d"
         comPorts = [device for device in win32file.QueryDosDevice(None).split("\x00") if re.search("^COM\d+$", device)]
         comPorts.sort()
         [mainWindow.ui.selRow1COM.addItem(comPort) for comPort in comPorts]
         [mainWindow.ui.selRow2COM.addItem(comPort) for comPort in comPorts]
     else:
         # Everyone else
-        [mainWindow.ui.selRow1COM.addItem(comPort[0]) for comPort in list_ports.comports()]
-        [mainWindow.ui.selRow2COM.addItem(comPort[0]) for comPort in list_ports.comports()]
+        for comPort in list_ports.comports():
+            # If the user only wants to see connections for compatible OpenBrite devices, use this filter
+            if True or ("VID_0403+PID_7AD0" in comPort[2].upper()):
+                mainWindow.ui.selRow1COM.addItem(comPort[0])
+                mainWindow.ui.selRow2COM.addItem(comPort[0])
     
-def serialSendEx(debugMsg, serialMsg, delay):
+def serialSendEx(debugMsg, serialMsg, delay, keepCxn=False):
     global outputThread
     #console.cwrite(debugMsg + " " + serialMsg)
     console.cwrite(debugMsg)
@@ -212,19 +215,47 @@ def serialSendEx(debugMsg, serialMsg, delay):
         try:
             globals.cxn1.write(serialMsg)
         except Exception as ex:
-            #print "Error writing to the selected port; perhaps it is closed.  Will try opening it.  Details:", ex
+            console.cwrite("Error writing to the selected port; perhaps it is closed.  Will try opening it.  Details: %s" % ex)
             # TODO FIXME: Port name should be determined from an array of rowNum -> COM port
+            cxn = None
             try:
-                cxn = serial.Serial(mw.ui.selRow1COM.currentText())
+                cxn = serial.Serial(mw.ui.selRow1COM.currentText(), 9600)
                 cxn.write(serialMsg)
             except Exception as ex:
                 console.cwrite("There was a problem opening the selected port (%s) and writing the desired message.  Please make sure you have a working COM port selected.\n" % mw.ui.selRow1COM.currentText())
-                console.cwrite("Details:", ex)
-                cxn.close()
+                console.cwrite("Details: %s" % ex)
                 return
             console.cwrite("Finished writing the desired message.\n")
-            cxn.close()
-        
+            if keepCxn:
+                globals.cxn1 = cxn
+            else:
+                globals.cxn1.close()
+
+def serialReadEx(len, msgWrapper, delay, keepCxn=False):
+    global outputThread
+    try:
+        if outputThread.isAlive():
+            # If the output thread is alive, let that thread handle the IO
+            # Define the message: control mode flag FF, instruction 80, chip ID 80 (chip ID doesn't matter in this case)
+            # Add a flag to read the serial output
+            globals.evtDefinition = {'message': serialMsg, 'delay': delay, 'read': True}
+            globals.evt.clear()      # clear the event flag to indicate it should branch before further updates
+        else:
+            # Raise an exception so we send the commands over serial anyway
+            raise
+    except:
+        try:
+            sleep(delay)
+            message = globals.cxn1.read(len)
+            console.cwrite(msgWrapper % message)
+        except Exception as ex:
+            console.cwrite("There was a problem opening the selected port (%s) and reading the desired message.  Please make sure you have a working COM port selected.\n" % mw.ui.selRow1COM.currentText())
+            console.cwrite("Details: %s" % ex)
+            globals.cxn1.close()
+            return
+        if not keepCxn:
+            globals.cxn1.close()
+            
 def _updateBoards(numBoards):
     globals.boards.clear()              # empty the list of board indexes
     #globals.boards.extend(range(0, 32))
@@ -232,16 +263,16 @@ def _updateBoards(numBoards):
     for i in range(0, numBoards):
         globals.boards.extend([int( delta * i / 16 )])
 
-def isValidBoardAddress(inputContainer):
+def isValidBoardAddress(address):
     number = 0
     # if the number is False, return 0
-    if inputContainer.text() is False:
+    if address is False:
         return 0
     try:                     # first, try the number in Base 10
-        number = int(inputContainer.text())
+        number = int(address)
     except ValueError:       # now try it in hex (Base 16)
         try:
-            number = int(inputContainer.text(), 16)
+            number = int(address, 16)
         except:              # number is not valid in decimal or hex
             console.cwrite("Error: Address \"%s\" is not valid.  A board address is an integer ranging from 0 through 63; chip addresses exist from 128 through 255.\n" % inputContainer.text())
             return None
@@ -254,6 +285,156 @@ def isValidBoardAddress(inputContainer):
     # If we're here, the chip ID is invalid
     console.cwrite("Error: Address \"%d\" is not valid.  Valid board addresses range from 0 through 63; valid chip addresses are 128 through 255.\n" % number)
     return None
+
+################################################################################
+# Firmware Operations
+################################################################################
+
+def showTestPatternOn(boardId):
+    # Validate the input
+    boardAddr = isValidBoardAddress(boardId) if (boardId != 64) else 64
+    if boardAddr is None: return
+    if (boardAddr < 64):
+        debugMsg = "Showing test pattern on board ID %s (chip addresses %d and %d)..." % (boardAddr, boardAddr + 128, boardAddr + 192)
+        serialSendEx(debugMsg, globals.cmdPassword + "\x80" + chr(int(boardAddr)), 5)
+    elif (boardAddr < 128):
+        serialSendEx("Showing test pattern on all boards...", globals.cmdPassword + "\x80" + chr(int(boardAddr)), 5)
+    elif (boardAddr < 256):
+        debugMsg = "Showing test pattern on chip ID %s..." % boardAddr
+        serialSendEx(debugMsg, globals.cmdPassword + "\x80" + chr(int(boardAddr)), 5)
+
+def resetChipIDs():
+    serialSendEx("Resetting chip IDs...", globals.cmdPassword + "\x81\x00", 2)
+
+def excrementChipID(chipId, direction):
+    # Validate the input
+    chipAddr = isValidBoardAddress(chipId)
+    if chipAddr is None: return
+    if chipAddr < 64:
+        if direction == 1:
+            debugMsg = "Incrementing chips on board %d..." % chipAddr
+            serialSendEx(debugMsg, globals.cmdPassword + "\x82" + chr(int(chipAddr + 128)) + globals.cmdPassword + "\x82" + chr(int(chipAddr + 192)), 2)
+        elif direction == -1:
+            debugMsg = "Decrementing chips on board %d..." % chipAddr
+            serialSendEx(debugMsg, globals.cmdPassword + "\x83" + chr(int(chipAddr + 128)) + globals.cmdPassword + "\x83" + chr(int(chipAddr + 192)), 2)
+    elif chipAddr > 127:
+        if direction == 1:
+            debugMsg = "Incrementing chip address %d..." % chipAddr
+            serialSendEx(debugMsg, globals.cmdPassword + "\x82" + chr(int(chipAddr)), 2)
+        elif direction == -1:
+            debugMsg = "Decrementing chip address %d..." % chipAddr
+            serialSendEx(debugMsg, globals.cmdPassword + "\x83" + chr(int(chipAddr)), 2)
+
+def setChipID(oldBoardId, newBoardId):
+    # Validate the input
+    oldBoardAddr = isValidBoardAddress(oldBoardId)
+    newBoardAddr = isValidBoardAddress(newBoardId)
+    if (oldBoardAddr is None) or (newBoardAddr is None): return
+    # Do some additional validation
+    if (oldBoardAddr < 64 and newBoardAddr >= 64) or (oldBoardAddr >= 64 and newBoardAddr < 64):
+        console.cwrite("When changing IDs for a board, the current value and desired value must be each less than 64.")
+        return
+    if (oldBoardAddr < 64):
+        debugMsg = "Setting board address %d to be %d..." % (oldBoardAddr, newBoardAddr)
+        serialSendEx(debugMsg,
+                     globals.cmdPassword + "\x84" + chr(int(oldBoardAddr) + 128) + chr(int(newBoardAddr) + 128) + 
+                     globals.cmdPassword + "\x84" + chr(int(oldBoardAddr) + 192) + chr(int(newBoardAddr) + 192),
+                     2)
+    elif (oldBoardAddr > 127):
+        debugMsg = "Setting chip address %d to be %d..." % (oldBoardAddr, newBoardAddr)
+        serialSendEx(debugMsg, globals.cmdPassword + "\x84" + chr(int(oldBoardAddr)) + chr(int(newBoardAddr)), 2)
+
+def saveChipID(chipId):
+    # Validate the input
+    chipAddr = isValidBoardAddress(chipId)
+    if chipAddr is None: return
+    if chipAddr < 64:
+        debugMsg = "Saving chip addresses on board %d..." % chipAddr
+        serialSendEx(debugMsg, globals.cmdPassword + "\x85" + chr(int(chipAddr + 128)) + globals.cmdPassword + "\x85" + chr(int(chipAddr + 192)), 2)
+    elif chipAddr > 127:
+        debugMsg = "Saving chip address %d to the chip..." % chipAddr
+        serialSendEx(debugMsg, globals.cmdPassword + "\x85" + chr(int(chipAddr)), 2)
+    elif chipAddr == 64:
+        # Save All IDs
+        for i in range(128, 256):
+            serialSendEx("Saving chip ID " + i.__str__() + " to the chip...", globals.cmdPassword + "\x85" + chr(i), 0.002)
+        console.cwrite("Done saving all chip IDs.  Sorry for all the messages; we'll reduce the extraneous output later.")
+
+def eraseChipID(chipId):
+    # Validate the input
+    chipAddr = isValidBoardAddress(chipId)
+    if chipAddr is None: return
+    if chipAddr < 64:
+        debugMsg = "Erasing chip addresses on board %d..." % chipAddr
+        serialSendEx(debugMsg, globals.cmdPassword + "\x86" + chr(int(chipAddr + 128)) + globals.cmdPassword + "\x86" + chr(int(chipAddr + 192)), 2)
+    elif chipAddr > 127:
+        debugMsg = "Erasing chip address %d to the chip..." % chipAddr
+        serialSendEx(debugMsg, globals.cmdPassword + "\x86" + chr(int(chipAddr)), 2)
+    elif chipAddr == 64:
+        # Erase All IDs
+        for i in range(128, 256):
+            serialSendEx("Erasing chip ID " + i.__str__() + " from the chip...", globals.cmdPassword + "\x86" + chr(i), 0.002)
+        console.cwrite("Done erasing all chip IDs.  Sorry for all the messages; we'll reduce the extraneous output later.")
+
+def saveBaudRate(chipId):
+    # Validate the input
+    chipAddr = isValidBoardAddress(chipId)
+    if chipAddr is None: return
+    if chipAddr < 64:
+        debugMsg = "Saving baud rate to board %d..." % chipAddr
+        serialSendEx(debugMsg, globals.cmdPassword + "\x9E" + chr(int(chipAddr + 128)) + globals.cmdPassword + "\x9E" + chr(int(chipAddr + 192)), 2)
+    elif chipAddr > 127:
+        debugMsg = "Saving baud rate to chip %d..." % chipAddr
+        serialSendEx(debugMsg, globals.cmdPassword + "\x9E" + chr(int(chipAddr)), 2)
+
+def eraseBaudRate(chipId):
+    # Validate the input
+    chipAddr = isValidBoardAddress(chipId)
+    if chipAddr is None: return
+    if chipAddr < 64:
+        debugMsg = "Erasing baud rate on board %d..." % chipAddr
+        serialSendEx(debugMsg, globals.cmdPassword + "\x9F" + chr(int(chipAddr + 128)) + globals.cmdPassword + "\x9F" + chr(int(chipAddr + 192)), 2)
+    elif chipAddr > 127:
+        debugMsg = "Erasing baud rate from chip %d..." % chipAddr
+        serialSendEx(debugMsg, globals.cmdPassword + "\x9F" + chr(int(chipAddr)), 2)
+
+def eraseMemoryOnAll():
+    serialSendEx("Erasing the EEPROM settings (Chip ID & baud rate) on all boards...", globals.cmdPassword + "\x8F\x00", 2)
+
+def viewFirmwareVersion(chipId):
+    # Validate the input
+    chipAddr = isValidBoardAddress(chipId)
+    if chipAddr is None: return
+    if chipAddr < 64:
+        debugMsg = "Polling for firmware version on board %d red chip..." % chipAddr
+        serialSendEx(debugMsg, globals.cmdPassword + "\xA0" + chr(int(chipAddr + 128)), 0.35, True)
+        serialReadEx(3, "Red chip firmware version: %s", 0.35, True)
+        debugMsg = "Polling for firmware version on board %d green chip..." % chipAddr
+        serialSendEx(debugMsg, globals.cmdPassword + "\xA0" + chr(int(chipAddr + 192)), 0.35, True)
+        serialReadEx(3, "Green chip firmware version: %s", 0.35, False)
+    elif chipAddr > 127:
+        debugMsg = "Polling for firmware version on chip %d..." % chipAddr
+        serialSendEx(debugMsg, globals.cmdPassword + "\xA0" + chr(int(chipAddr)), 2, True)
+        serialReadEx(3, "Chip " + chipAddr.__str__() + " firmware version: %s", 0.35, False)
+
+def compressChipIDs():
+    boardCount = len(globals.boards)
+    for i in range(1, boardCount):
+        serMsg = ""
+        for j in range(globals.boards[i - 1] + 1, globals.boards[i] + 1):
+            serMsg += globals.cmdPassword + "\x84" + chr(j + 0x80) + chr(i + 0x80)
+            serMsg += globals.cmdPassword + "\x84" + chr(j + 0xC0) + chr(i + 0xC0)
+        serialSendEx("Compressing chip IDs...", serMsg, 2)
+        #sleep(0.5)
+    startWith = isValidBoardAddress(self.ui.txtCompressStartFrom)
+    if startWith is None:
+        startWith = 0
+    msgIndexes = [i % 64 for i in range(startsWith, startsWith + boardCount)]
+    serMsg = ""
+    for i in range(startWith + boardCount - 1, startWith - 1, -1):
+        serMsg += globals.cmdPassword + "\x84" + chr((i - boardCount) + 0x80) + chr(i + 0x80)
+        serMsg += globals.cmdPassword + "\x84" + chr((i - boardCount) + 0xC0) + chr(i + 0xC0)
+    serialSendEx("Resetting chip IDs...", serMsg, 2)
 
 
 # This class represents our main window, and runs functions to initialize it
@@ -297,19 +478,33 @@ class MainWindow(QMainWindow):
         # Animation panel
         self.ui.btnAnim.clicked.connect(self.showAnimation)
         # Firmware panel
-        self.ui.btnShowTestPattern.clicked.connect(lambda: self.showTestPatternOn(self.ui.txtTestOn))
-        self.ui.btnStopGuessing.clicked.connect(lambda: self.showTestPatternOn(64))
-        self.ui.btnResetChipIDs.clicked.connect(self.resetChipIDs)
-        self.ui.btnIncrementChipID.clicked.connect(lambda: self.excrementChipID(self.ui.txtChipIDIncr, 1))
-        self.ui.btnDecrementChipID.clicked.connect(lambda: self.excrementChipID(self.ui.txtChipIDDecr, -1))
-        self.ui.btnSetChipID.clicked.connect(lambda: self.setChipID(self.ui.txtChipIDCurrent, self.ui.txtChipIDDesired))
-        self.ui.btnSaveChipID.clicked.connect(lambda: self.saveChipID(self.ui.txtSaveOn))
-        self.ui.btnSaveAllIDs.clicked.connect(self.saveAllIDs)
-        self.ui.btnCompressChipIDs.clicked.connect(self.compressChipIDs)
+        #self.ui.btnShowTestPattern.clicked.connect(lambda: self.showTestPatternOn(self.ui.txtTestOn))
+        #self.ui.btnShowAllTestPatterns.clicked.connect(lambda: self.showTestPatternOn(64))
+               # This changes the chip ID from Target to Desired
+        #self.ui.btnSetChipID.clicked.connect(lambda: self.setChipID(self.ui.txtChipIDTarget, self.ui.txtChipIDDesired))
+        #self.ui.btnEraseMemoryOnAll.clicked.connect(self.eraseMemoryOnAll)
+        self.ui.fwOpsList.itemSelectionChanged.connect(self.showFwHelp)
+        self.ui.btnAllBoards.clicked.connect(self.selectAllBoards)
+        self.ui.btnExecFwOp.clicked.connect(self.executeFwOp)
+        self.ui.btnEraseSettings.clicked.connect(self.eraseSomething)
         # Simulator panel
         # Baud Rate panel
         self.ui.spinBaudRatePanels.valueChanged.connect(self.updateTargetBaudRate)
         self.ui.spinBaudRateScrollRate.valueChanged.connect(self.updateTargetBaudRate)
+        
+        # Populate the list in the Firmware tab
+        # 1 = command is from firmware, 128-255 = 0x80-0xFF = actual firmware opcode
+        # 2 = command is implemented in software & runs multiple firmware ops, 000-999 = index
+        QListWidgetItem("Show Test Pattern", self.ui.fwOpsList, 1128)
+        QListWidgetItem("Increment Chip ID", self.ui.fwOpsList, 1130)
+        QListWidgetItem("Decrement Chip ID", self.ui.fwOpsList, 1131)
+        QListWidgetItem("Change Chip ID", self.ui.fwOpsList, 1132)
+        QListWidgetItem("Reset All Chip IDs", self.ui.fwOpsList, 1129)
+        QListWidgetItem("Save/Erase Chip ID(s)", self.ui.fwOpsList, 1133)
+        QListWidgetItem("Save/Erase Baud Rate(s)", self.ui.fwOpsList, 1158)
+        QListWidgetItem("Erase All Settings", self.ui.fwOpsList, 1143)
+        QListWidgetItem("View Firmware Version", self.ui.fwOpsList, 1160)
+        QListWidgetItem("Compress Chip IDs", self.ui.fwOpsList, 2000)
     
     # @Override
     # Triggers when the main window is closed by the user.  Initiates graceful application shutdown.
@@ -477,95 +672,189 @@ class MainWindow(QMainWindow):
         globals.cxn1 = serial.Serial(portName, 9600)
         serialWelcome("animation")
 
-    def resetChipIDs(self, event):
-        serialSendEx("Resetting chip IDs...", globals.cmdPassword + "\x81\x00", 2)
+    def selectAllBoards(self, event):
+        # Just make the box say "All" - the program will pick up on that keyword
+        self.ui.txtSrcBoard.setText("All")
 
-    def saveChipID(self, chipIdContainer):
-        # Validate the input
-        chipAddr = isValidBoardAddress(chipIdContainer)
-        if chipAddr is None: return
-        if chipAddr < 64:
-            debugMsg = "Saving chip addresses on board %d..." % chipAddr
-            serialSendEx(debugMsg, globals.cmdPassword + "\x85" + chr(int(chipAddr + 128)) + globals.cmdPassword + "\x85" + chr(int(chipAddr + 192)), 2)
-        elif chipAddr > 127:
-            debugMsg = "Saving chip address %d to the chip..." % chipAddr
-            serialSendEx(debugMsg, globals.cmdPassword + "\x85" + chr(int(chipAddr)), 2)
-
-    def saveAllIDs(self, event):
-        for i in range(128, 256):
-            serialSendEx("Saving chip ID " + i.__str__() + " to the chip...", globals.cmdPassword + "\x85" + chr(i), 0.002)
-        console.cwrite("Done saving all chip IDs.  Sorry for all the messages; we'll reduce the extraneous output later.")
-
-    def compressChipIDs(self, event):
-        boardCount = len(globals.boards)
-        for i in range(1, boardCount):
-            serMsg = ""
-            for j in range(globals.boards[i - 1] + 1, globals.boards[i] + 1):
-                serMsg += globals.cmdPassword + "\x84" + chr(j + 0x80) + chr(i + 0x80)
-                serMsg += globals.cmdPassword + "\x84" + chr(j + 0xC0) + chr(i + 0xC0)
-            serialSendEx("Compressing chip IDs...", serMsg, 2)
-            #sleep(0.5)
-        startWith = isValidBoardAddress(self.ui.txtCompressStartFrom)
-        if startWith is None:
-            startWith = 0
-        msgIndexes = [i % 64 for i in range(startsWith, startsWith + boardCount)]
-        serMsg = ""
-        for i in range(startWith + boardCount - 1, startWith - 1, -1):
-            serMsg += globals.cmdPassword + "\x84" + chr((i - boardCount) + 0x80) + chr(i + 0x80)
-            serMsg += globals.cmdPassword + "\x84" + chr((i - boardCount) + 0xC0) + chr(i + 0xC0)
-        serialSendEx("Resetting chip IDs...", serMsg, 2)
-
-    def excrementChipID(self, chipIdContainer, direction):
-        # Validate the input
-        chipAddr = isValidBoardAddress(chipIdContainer)
-        if chipAddr is None: return
-        if chipAddr < 64:
-            if direction == 1:
-                debugMsg = "Incrementing chips on board %d..." % chipAddr
-                serialSendEx(debugMsg, globals.cmdPassword + "\x82" + chr(int(chipAddr + 128)) + globals.cmdPassword + "\x82" + chr(int(chipAddr + 192)), 2)
-            elif direction == -1:
-                debugMsg = "Decrementing chips on board %d..." % chipAddr
-                serialSendEx(debugMsg, globals.cmdPassword + "\x83" + chr(int(chipAddr + 128)) + globals.cmdPassword + "\x83" + chr(int(chipAddr + 192)), 2)
-        elif chipAddr > 127:
-            if direction == 1:
-                debugMsg = "Incrementing chip address %d..." % chipAddr
-                serialSendEx(debugMsg, globals.cmdPassword + "\x82" + chr(int(chipAddr)), 2)
-            elif direction == -1:
-                debugMsg = "Decrementing chip address %d..." % chipAddr
-                serialSendEx(debugMsg, globals.cmdPassword + "\x83" + chr(int(chipAddr)), 2)
-        
-    def setChipID(self, oldBoardIdContainer, newBoardIdContainer):
-        # Validate the input
-        oldBoardAddr = isValidBoardAddress(oldBoardIdContainer)
-        newBoardAddr = isValidBoardAddress(newBoardIdContainer)
-        if (oldBoardAddr is None) or (newBoardAddr is None): return
-        # Do some additional validation
-        if (oldBoardAddr < 64 and newBoardAddr >= 64) or (oldBoardAddr >= 64 and newBoardAddr < 64):
-            console.cwrite("When changing IDs for a board, the current value and desired value must be each less than 64.")
+    def showFwHelp(self):
+        # Find out what item (firmware operation) is selected, then do it
+        fwOp = 0
+        try:
+            fwOp = self.ui.fwOpsList.selectedItems()[0].type()
+        except:
             return
-        if (oldBoardAddr < 64):
-            debugMsg = "Setting board address %d to be %d..." % (oldBoardAddr, newBoardAddr)
-            serialSendEx(debugMsg,
-                         globals.cmdPassword + "\x84" + chr(int(oldBoardAddr) + 128) + chr(int(newBoardAddr) + 128) + 
-                         globals.cmdPassword + "\x84" + chr(int(oldBoardAddr) + 192) + chr(int(newBoardAddr) + 192),
-                         2)
-        elif (oldBoardAddr > 127):
-            debugMsg = "Setting chip address %d to be %d..." % (oldBoardAddr, newBoardAddr)
-            serialSendEx(debugMsg, globals.cmdPassword + "\x84" + chr(int(oldBoardAddr)) + chr(int(newBoardAddr)), 2)
-        
-    def showTestPatternOn(self, boardIdContainer):
-        # Validate the input
-        boardAddr = isValidBoardAddress(boardIdContainer) if (boardIdContainer != 64) else 64
-        if boardAddr is None: return
-        if (boardAddr < 64):
-            debugMsg = "Showing test pattern on board ID %s (chip addresses %d and %d)..." % (boardAddr, boardAddr + 128, boardAddr + 192)
-            serialSendEx(debugMsg, globals.cmdPassword + "\x80" + chr(int(boardAddr)), 5)
-        elif (boardAddr < 128):
-            serialSendEx("Showing test pattern on all boards...", globals.cmdPassword + "\x80" + chr(int(boardAddr)), 5)
-        elif (boardAddr < 256):
-            debugMsg = "Showing test pattern on chip ID %s..." % boardAddr
-            serialSendEx(debugMsg, globals.cmdPassword + "\x80" + chr(int(boardAddr)), 5)
-            
+        if fwOp == 1128:
+            # show test pattern
+            self.ui.lblFwOpHelp.setText("Shows the test pattern on the specified board(s), normally consisting of the board ID.")
+            self.ui.lblSrcBoard.show()
+            self.ui.txtSrcBoard.show()
+            self.ui.btnAllBoards.show()
+            self.ui.lblSrcBoard.setText("On:")
+            self.ui.lblTargetBoard.hide()
+            self.ui.txtTargetBoard.hide()
+            self.ui.btnExecFwOp.setText("Go!")
+            self.ui.btnEraseSettings.hide()
+        elif fwOp == 1130:
+            # increment chip ID
+            self.ui.lblFwOpHelp.setText("Adds 1 to the specified board or chip ID.  Make sure no other device has the resulting ID.")
+            self.ui.lblSrcBoard.show()
+            self.ui.txtSrcBoard.show()
+            self.ui.btnAllBoards.hide()
+            self.ui.lblSrcBoard.setText("Current ID:")
+            self.ui.lblTargetBoard.hide()
+            self.ui.txtTargetBoard.hide()
+            self.ui.btnExecFwOp.setText("Go!")
+            self.ui.btnEraseSettings.hide()
+        elif fwOp == 1131:
+            # decrement chip ID
+            self.ui.lblFwOpHelp.setText("Subtracts 1 from the specified board or chip ID.  Make sure no other device has the resulting ID.")
+            self.ui.lblSrcBoard.show()
+            self.ui.txtSrcBoard.show()
+            self.ui.btnAllBoards.hide()
+            self.ui.lblSrcBoard.setText("Current ID:")
+            self.ui.lblTargetBoard.hide()
+            self.ui.txtTargetBoard.hide()
+            self.ui.btnExecFwOp.setText("Go!")
+            self.ui.btnEraseSettings.hide()
+        elif fwOp == 1132:
+            # change chip ID
+            self.ui.lblFwOpHelp.setText("Changes the current board or chip ID to the desired value.  Make sure no other device has the desired ID.")
+            self.ui.lblSrcBoard.show()
+            self.ui.txtSrcBoard.show()
+            self.ui.btnAllBoards.hide()
+            self.ui.lblSrcBoard.setText("Current ID:")
+            self.ui.lblTargetBoard.show()
+            self.ui.txtTargetBoard.show()
+            self.ui.btnExecFwOp.setText("Go!")
+            self.ui.btnEraseSettings.hide()
+        elif fwOp == 1129:
+            # reset all chip IDs
+            self.ui.lblFwOpHelp.setText("Resets all chip IDs to the stored value, or the value determined by auto-addressing.")
+            self.ui.lblSrcBoard.hide()
+            self.ui.txtSrcBoard.hide()
+            self.ui.btnAllBoards.hide()
+            self.ui.lblSrcBoard.setText("On:")
+            self.ui.lblTargetBoard.hide()
+            self.ui.txtTargetBoard.hide()
+            self.ui.btnExecFwOp.setText("Go!")
+            self.ui.btnEraseSettings.hide()
+        elif fwOp == 1133:
+            # Save/Erase Chip ID
+            self.ui.lblFwOpHelp.setText('Hit "Save" to commit the chip or board ID to the specified device\'s memory.  Hit "Erase" to erase it.')
+            self.ui.lblSrcBoard.show()
+            self.ui.txtSrcBoard.show()
+            self.ui.btnAllBoards.show()
+            self.ui.lblSrcBoard.setText("On:")
+            self.ui.lblTargetBoard.hide()
+            self.ui.txtTargetBoard.hide()
+            self.ui.btnExecFwOp.setText("Save")
+            self.ui.btnEraseSettings.show()
+        elif fwOp == 1158:
+            # Save/Erase Baud Rate
+            self.ui.lblFwOpHelp.setText('Hit "Save" to commit each board\'s baud rate to its memory.  Hit "Erase" to erase the settings.')
+            self.ui.lblSrcBoard.hide()
+            self.ui.txtSrcBoard.hide()
+            self.ui.btnAllBoards.hide()
+            self.ui.lblSrcBoard.setText("On:")
+            self.ui.lblTargetBoard.hide()
+            self.ui.txtTargetBoard.hide()
+            self.ui.btnExecFwOp.setText("Save")
+            self.ui.btnEraseSettings.show()
+        elif fwOp == 1143:
+            # Erase All Settings
+            self.ui.lblFwOpHelp.setText("Erase all settings (ID and baud rate) stored on all devices.")
+            self.ui.lblSrcBoard.hide()
+            self.ui.txtSrcBoard.hide()
+            self.ui.btnAllBoards.hide()
+            self.ui.lblSrcBoard.setText("On:")
+            self.ui.lblTargetBoard.hide()
+            self.ui.txtTargetBoard.hide()
+            self.ui.btnExecFwOp.setText("Go!")
+            self.ui.btnEraseSettings.hide()
+        elif fwOp == 1160:
+            # Erase All Settings
+            self.ui.lblFwOpHelp.setText("Displays the firmware version installed on the specified board(s) on the console.")
+            self.ui.lblSrcBoard.show()
+            self.ui.txtSrcBoard.show()
+            self.ui.btnAllBoards.show()
+            self.ui.lblSrcBoard.setText("On:")
+            self.ui.lblTargetBoard.hide()
+            self.ui.txtTargetBoard.hide()
+            self.ui.btnExecFwOp.setText("Go!")
+            self.ui.btnEraseSettings.hide()
+        elif fwOp == 2000:
+            # Compress Chip IDs
+            self.ui.lblFwOpHelp.setText('Reduces IDs to sequential numbers: e.g. 0, 16, 32, 48 becomes 0, 1, 2, 3. "Start with" adds an offset to the IDs.')
+            self.ui.lblSrcBoard.show()
+            self.ui.txtSrcBoard.show()
+            self.ui.btnAllBoards.hide()
+            self.ui.lblSrcBoard.setText("Start with:")
+            self.ui.lblTargetBoard.hide()
+            self.ui.txtTargetBoard.hide()
+            self.ui.btnExecFwOp.setText("Go!")
+            self.ui.btnEraseSettings.hide()
+
+    def executeFwOp(self, event):
+        # Find out what item (firmware operation) is selected, then do it
+        fwOp = 0
+        id = 0
+        id2 = 0
+        try:
+            fwOp = self.ui.fwOpsList.selectedItems()[0].type()
+            id = self.ui.txtSrcBoard.toPlainText() if self.ui.txtSrcBoard.toPlainText() != "All" else 64
+            if fwOp == 1132:
+                id2 = self.ui.txtTargetBoard.toPlainText()
+        except Exception as ex:
+            print ex
+            return
+        if fwOp == 1128:
+            # show test pattern
+            showTestPatternOn(id)
+        elif fwOp == 1130:
+            # increment chip ID
+            excrementChipID(id, 1)
+        elif fwOp == 1131:
+            # decrement chip ID
+            excrementChipID(id, -1)
+        elif fwOp == 1132:
+            # change chip ID
+            setChipID(id, id2)
+        elif fwOp == 1129:
+            # reset all chip IDs
+            resetChipIDs()
+        elif fwOp == 1133:
+            # Save/Erase Chip ID
+            saveChipID(id)
+        elif fwOp == 1158:
+            # Save/Erase Baud Rate
+            saveBaudRate(id)
+        elif fwOp == 1143:
+            # Erase All Settings
+            eraseMemoryOnAll()
+        elif fwOp == 1160:
+            # Erase All Settings
+            viewFirmwareVersion(id)
+        elif fwOp == 2000:
+            # Compress Chip IDs
+            compressChipIDs()
+
+    def eraseSomething(self, event):
+        # Find out what item (firmware operation) is selected, then do it
+        fwOp = 0
+        id = 0
+        try:
+            fwOp = self.ui.fwOpsList.selectedItems()[0].type()
+            id = self.ui.txtSrcBoard.toPlainText() if self.ui.txtSrcBoard.toPlainText() != "All" else 64
+        except Exception as ex:
+            print ex
+            return
+        if fwOp == 1133:
+            # Save/Erase Chip ID
+            eraseChipID(id)
+        elif fwOp == 1158:
+            # Save/Erase Baud Rate
+            eraseBaudRate(id)
+
     def updateTargetBaudRate(self, event):
         numPanels = self.ui.spinBaudRatePanels.value()
         maxRefresh = self.ui.spinBaudRateScrollRate.value()
@@ -575,7 +864,7 @@ class MainWindow(QMainWindow):
                 break
             else:
                 self.ui.lblTargetBaudRate.setText("Unsupported")
-    
+
 
 ################################################################################
 # Step 3. Launch the app
