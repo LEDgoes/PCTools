@@ -3,17 +3,18 @@ from PyQt5.QtCore import Qt, pyqtSignal
 from LEDgoesRawTextItem import RawTextItem
 import serial
 import threading
-# Import the window used for helping debug the marquee & the software
+# Import other windows used in our GUI
 import LEDgoesConsole as console
 
 html = u'<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">\n<html><head><meta name="qrichtext" content="1" /><style type="text/css">\np, li { white-space: pre-wrap; }\n</style></head><body style=" font-family:\'MS Shell Dlg 2\'; font-size:8.25pt; font-weight:400; font-style:normal;">\n<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">%s</p></body></html>'
-initMsgs = [html % '<span style=" color:#808000;"> :: AWAITING MESSAGES   </span>']
+initMsgs = [html % '<span style=" color:#808000;"> :: AWAITING MESSAGES WE NEED THIS TO BE SUPER-LONG SO I CAN TEST OUT A 64-CHARACTER BOARD IN ENOUGH TIME TO SEND TO THE BACKERS  </span>']
 
 animTuple = None          # Tuple containing deques of each band (RGB), themselves containing a matrix of each frame
 boards = deque()          # Number of boards being used in the matrix
 cxn1 = serial.Serial()    # Connection for row 1
 cxn2 = serial.Serial()    # Connection for row 2
 cw = None                 # Console window
+dw = None                 # Designer window
 delay = 0                 # Amount of time to wait until updating the board with another round of serial data
 evt = threading.Event()   # Thread will check if the event has gone to False, and then wait
 evtDefinition = {}        # If the thread is running & the user wants to send a FW control signal, the thread will execute this string

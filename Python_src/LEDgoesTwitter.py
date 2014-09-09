@@ -63,4 +63,4 @@ def _twitterStart(properties):
     console.cwrite("Starting Twitter stream with properties %s" % properties)
     twitterProperties = properties
     twitterThread = twitterStreamThread()
-    twitterThread.start()        
+    twitterThread.start()

@@ -25,6 +25,9 @@ import json
 # import the LEDgoes-specific GUI framework details
 import LEDgoesForm
 from LEDgoesForm import Ui_MainWindow
+# Import other windows used in our GUI
+import LEDgoesConsole as console    # Used to debug the marquee & the software
+import LEDgoesDesigner as designer  # Used to design fonts & board layouts
 # import things important for serial connections
 import os
 import serial
@@ -35,8 +38,6 @@ from serial.tools import list_ports     # All OSes have this but it can be reall
 import glob
 # Import the signal module so we can listen for when the user hits Ctrl+C
 import signal
-# Import the window used for helping debug the marquee & the software
-import LEDgoesConsole as console
 # Import default text tools
 import LEDgoesScrollingText as scroll
 # Import image tools, including external & internal libraries
@@ -47,6 +48,8 @@ import twitter
 import LEDgoesTwitter
 # Import the derived class for raw text list items
 from LEDgoesRawTextItem import RawTextItem
+# Allow user to save & import configurations
+import ConfigParser
 
 ################################################################################
 # Step 1. Define the QApplication so we can start building GUI widgets
@@ -75,7 +78,7 @@ from time import sleep
 # import threading so our I/O isn't on the UI thread
 import threading
 
-                    
+
 ################################################################################
 # Step 3. Define important variables & functions & import user-defined modules
 ################################################################################
@@ -101,7 +104,7 @@ def serialWelcome(welcomeType):
         serialMsg = "%s%s" % (globals.cmdPassword, chr(0x90 + baudRateIdx))
         serialSendEx("Sending %s at 9600 baud to change baud rate" % serialMsg, serialMsg, 1)
         sleep(1.2)
-    #globals.cxn1.close()
+    globals.cxn1.close()
     if baudRates[baudRateIdx] != prevBaudRate and prevBaudRate != "9600":
         # the user adjusted the serial rate before, so talk to the boards at their current rate
         globals.cxn1.baudrate = int(prevBaudRate)
@@ -114,14 +117,16 @@ def serialWelcome(welcomeType):
         globals.cxn1.close()
     
     # Now actually re-open this program's serial connection in the user's desired speed
-    #globals.cxn1.baudrate = int(baudRates[baudRateIdx])
+    globals.cxn1.baudrate = int(baudRates[baudRateIdx])
     #console.cwrite(globals.cxn1.baudrate)
-    #globals.cxn1.open()
+    globals.cxn1.open()
     # Send the serial commands to adjust any board IDs that might be one too low
     if len(globals.boards) < 33:    # Only do this when 32 boards or less are in use
         tmp = list(globals.boards)
-        increments = [x - 1 for x in tmp[1:]]
+        increments = [int(x[2]) - 1 for x in tmp]
         for boardID in increments:
+            if boardID == 0:
+                continue
             serialSendEx("", globals.cmdPassword + "\x82" + chr(boardID + 128), 0.001)
             serialSendEx("", globals.cmdPassword + "\x82" + chr(boardID + 192), 0.001)
     # Start a thread
@@ -133,7 +138,7 @@ def serialWelcome(welcomeType):
         animationThread.start()
 
 ################################################################################
-# Step 4. Load all user-defined fonts
+# Step 4. Load all user-defined fonts & configurations
 ################################################################################
 
 # Look for all .ledfont files in the current working directory
@@ -150,6 +155,7 @@ for filename in glob.glob("*.ledfont"):
         fontjson = json.loads(font)
         globals.font[fontjson['name']] = fontjson
     except Exception as e:
+        print e
         console.cwrite("Error loading font %s" % filename)
         if fontWarningsEnabled:
             msgBox = QMessageBox()
@@ -178,9 +184,18 @@ if len(globals.font) == 0:
     ret = msgBox.exec_()
     sys.exit(0)
 
+# Read the configuration file
+OpenBriteUSBDevicesOnly = True
+config = ConfigParser.ConfigParser()
+if config.read('ledgoes.ini') != []:
+    # Set the third, optional argument of get to 1 if you wish to use raw mode.
+    OpenBriteUSBDevicesOnly = config.getboolean('Communication', 'OpenBriteUSBDevicesOnly')
+
 # This function finds the name of all serial ports and adds them to our lists
 def serial_ports(mainWindow):
     console.cwrite("\nScanning for serial ports...")
+    mainWindow.ui.selRow1COM.clear()
+    mainWindow.ui.selRow2COM.clear()
     if os.name == 'nt' and False:
         # Windows (alternate option)
         import win32file
@@ -193,7 +208,7 @@ def serial_ports(mainWindow):
         # Everyone else
         for comPort in list_ports.comports():
             # If the user only wants to see connections for compatible OpenBrite devices, use this filter
-            if True or ("VID_0403+PID_7AD0" in comPort[2].upper()):
+            if (not OpenBriteUSBDevicesOnly) or ("VID_0403+PID_7AD0" in comPort[2].upper()):
                 mainWindow.ui.selRow1COM.addItem(comPort[0])
                 mainWindow.ui.selRow2COM.addItem(comPort[0])
     
@@ -261,7 +276,7 @@ def _updateBoards(numBoards):
     #globals.boards.extend(range(0, 32))
     delta = 1024 / numBoards            # the auto-address line on each board should be equal to (1024 / # boards) * i
     for i in range(0, numBoards):
-        globals.boards.extend([int( delta * i / 16 )])
+        globals.boards.extend([(i, 0, int( delta * i / 16 ))])
 
 def isValidBoardAddress(address):
     number = 0
@@ -417,18 +432,15 @@ def viewFirmwareVersion(chipId):
         serialSendEx(debugMsg, globals.cmdPassword + "\xA0" + chr(int(chipAddr)), 2, True)
         serialReadEx(3, "Chip " + chipAddr.__str__() + " firmware version: %s", 0.35, False)
 
-def compressChipIDs():
+def compressChipIDs(startsWith):
     boardCount = len(globals.boards)
     for i in range(1, boardCount):
         serMsg = ""
-        for j in range(globals.boards[i - 1] + 1, globals.boards[i] + 1):
+        for j in range(globals.boards[i - 1][2] + 1, globals.boards[i][2] + 1):
             serMsg += globals.cmdPassword + "\x84" + chr(j + 0x80) + chr(i + 0x80)
             serMsg += globals.cmdPassword + "\x84" + chr(j + 0xC0) + chr(i + 0xC0)
         serialSendEx("Compressing chip IDs...", serMsg, 2)
         #sleep(0.5)
-    startWith = isValidBoardAddress(self.ui.txtCompressStartFrom)
-    if startWith is None:
-        startWith = 0
     msgIndexes = [i % 64 for i in range(startsWith, startsWith + boardCount)]
     serMsg = ""
     for i in range(startWith + boardCount - 1, startWith - 1, -1):
@@ -456,13 +468,19 @@ class MainWindow(QMainWindow):
         globals.uiMsgList = self.ui.rawTextList
 
         # Connect up the UI elements to event listeners.
+        # Menu
+        self.ui.actionUSB_Device_Selection.toggled.connect(self.toggleUSBFlavors)
+        self.ui.actionDumb_Enumeration.toggled.connect(self.toggleDumbEnumeration)
+        self.ui.actionRefresh_COM_Ports.triggered.connect(lambda: serial_ports(mw))
+        self.ui.actionAbout_LEDgoes_PC_Interface.triggered.connect(self.showAbout)
         # Main panels on top
+        self.ui.spinUpdateDelay.valueChanged.connect(self.updateDelay)
+        self.ui.spinPanelsPerRow.valueChanged.connect(self.updateBoards)
+        self.ui.btnCustomLayout.clicked.connect(self.openDesigner)
         self.ui.selSpeed.activated.connect(self.updateSpeed)
         self.ui.btnConnectRow1.clicked.connect(lambda: self.toggleRow(1))
         self.ui.btnConnectRow2.clicked.connect(lambda: self.toggleRow(2))
         self.ui.btnOpenConsole.clicked.connect(self.openConsole)
-        self.ui.spinUpdateDelay.valueChanged.connect(self.updateDelay)
-        self.ui.spinPanelsPerRow.valueChanged.connect(self.updateBoards)
         # Raw Text panel
         self.ui.btnDeleteRawText.clicked.connect(self.deleteMessage)
         self.ui.btnInsertRawTextBefore.clicked.connect(lambda: self.insertMessage(0))
@@ -506,6 +524,16 @@ class MainWindow(QMainWindow):
         QListWidgetItem("View Firmware Version", self.ui.fwOpsList, 1160)
         QListWidgetItem("Compress Chip IDs", self.ui.fwOpsList, 2000)
     
+    def toggleUSBFlavors(self, event):
+        global OpenBriteUSBDevicesOnly
+        OpenBriteUSBDevicesOnly = event
+
+    def toggleDumbEnumeration(self, event):
+        print event
+
+    def showAbout(self, event):
+        print "LEDgoes PC Interface v1.1\nCopyleft 2013-14 OpenBrite, LLC\n\nSee our GitHub repository at https://github.com/ledgoes/"
+
     # @Override
     # Triggers when the main window is closed by the user.  Initiates graceful application shutdown.
     def closeEvent(self, event):
@@ -569,6 +597,9 @@ class MainWindow(QMainWindow):
 
     def openConsole(self, event):
         console.openConsole()
+
+    def openDesigner(self, event):
+        designer.openDesigner()
 
     def updateDelay(self, event):
         globals.delay = event * 0.001
@@ -674,7 +705,7 @@ class MainWindow(QMainWindow):
 
     def selectAllBoards(self, event):
         # Just make the box say "All" - the program will pick up on that keyword
-        self.ui.txtSrcBoard.setText("All")
+        self.ui.txtSrcBoard.setPlainText("All")
 
     def showFwHelp(self):
         # Find out what item (firmware operation) is selected, then do it
@@ -836,7 +867,7 @@ class MainWindow(QMainWindow):
             viewFirmwareVersion(id)
         elif fwOp == 2000:
             # Compress Chip IDs
-            compressChipIDs()
+            compressChipIDs(id)
 
     def eraseSomething(self, event):
         # Find out what item (firmware operation) is selected, then do it

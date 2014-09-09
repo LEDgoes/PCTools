@@ -1,11 +1,10 @@
 '''
-Welcome to the LEDgoes PC Tools!  This file features inialization of the fonts and UI.
+Welcome to the LEDgoes PC Tools!  This file features inialization of the debugging console.
 
 To recompile any changes to the UI, run at the command prompt:
-pyuic5 -o LEDgoesForm.py "C:\Users\Stephen\Documents\LEDgoes PC Interface.ui"
+pyuic5 -o LEDgoesForm.py "C:\Users\Stephen\Documents\LEDgoes Console.ui"
 
 Requires pywin32 - http://sourceforge.net/projects/pywin32/files/pywin32/Build%20218/
-Requires pil
 
 
 Any assistance to make this code more "Pythonic" will be greatly welcome.
