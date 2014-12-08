@@ -15,6 +15,8 @@ from PyQt5.QtWidgets import QApplication, QMainWindow
 from PyQt5.QtWebKitWidgets import QWebPage
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import Qt
+# Why the hell do I need Network sockets, SSL, and printer support just to view a local HTML file?!
+from PyQt5 import QtNetwork, QtWebKit, QtPrintSupport
 import LEDgoesGlobals as globals
 # import the LEDgoes-specific GUI framework details
 import LEDgoesDesignerForm
