@@ -7,7 +7,7 @@ import threading
 import LEDgoesConsole as console
 
 html = u'<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">\n<html><head><meta name="qrichtext" content="1" /><style type="text/css">\np, li { white-space: pre-wrap; }\n</style></head><body style=" font-family:\'MS Shell Dlg 2\'; font-size:8.25pt; font-weight:400; font-style:normal;">\n<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">%s</p></body></html>'
-initMsgs = [html % '<span style=" color:#808000;"> :: AWAITING MESSAGES WE NEED THIS TO BE SUPER-LONG SO I CAN TEST OUT A 64-CHARACTER BOARD IN ENOUGH TIME TO SEND TO THE BACKERS  </span>']
+initMsgs = [html % '<span style=" color:#808000;"> :: AWAITING MESSAGES  </span>']
 
 animTuple = None          # Tuple containing deques of each band (RGB), themselves containing a matrix of each frame
 boards = deque()          # Number of boards being used in the matrix
@@ -24,6 +24,7 @@ richMsgs = initMsgs       # Human-readable messages with formatting markers incl
 msgLimit = 0              # How many messages can appear on the board before they start getting kicked off
 msgToOverwrite = 0        # message to attempt to overwrite if we exceed the msgLimit (will skip to the next one if sticky)
 uiMsgList = 0             # reference to the message list on the UI of "Raw Text"
+rowPixels = 7             # how many pixels exist in each row of a 5x7 matrix (hint: 7)
 
 # This is the new "password" to get into Command Mode
 # It consists of the ASCII for "PassWord" + 0x80 on each letter, plus 0xFF at the end

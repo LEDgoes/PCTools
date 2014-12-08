@@ -145,7 +145,9 @@ class serialThread (threading.Thread):
             # WRITING THE MESSAGE ON THE BOARD
             for frame in frames:      # iterate through each frame of the "text animation"
                 try:                  # write the frame to the marquee
-                    globals.cxn1.write([chr(ord(char)) for char in frame])
+                    # TODO: This had to change recently
+                    #       Join the chars in frame ahead of time to optimize this
+                    globals.cxn1.write(''.join([chr(ord(char)) for char in frame]))
                 except Exception as e:               # something unexpected happened
                     console.cwrite("Serial communication disconnected")
                     errFlag = True
@@ -209,3 +211,4 @@ def zipMessageString(new, messages):
                 messages.append(new[row])
             except IndexError:
                 console.cwrite("There was a problem extending the message contents.")
+

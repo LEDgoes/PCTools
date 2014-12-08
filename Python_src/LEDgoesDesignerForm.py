@@ -23,7 +23,7 @@ class Ui_DesignerWindow(object):
         self.verticalLayout.setContentsMargins(0, 0, 0, 0)
         self.verticalLayout.setObjectName("verticalLayout")
         self.webView = QtWebKitWidgets.QWebView(self.centralwidget)
-        self.webView.setUrl(QtCore.QUrl("file:///C:/Users/Stephen/Desktop/LEDgoesDrawingTool.html"))
+        self.webView.setUrl(QtCore.QUrl("file://LEDgoesDrawingTool.html"))
         self.webView.setObjectName("webView")
         self.verticalLayout.addWidget(self.webView)
         DesignerWindow.setCentralWidget(self.centralwidget)

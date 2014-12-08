@@ -117,6 +117,7 @@ def serialWelcome(welcomeType):
         globals.cxn1.close()
     
     # Now actually re-open this program's serial connection in the user's desired speed
+    sleep(1)
     globals.cxn1.baudrate = int(baudRates[baudRateIdx])
     #console.cwrite(globals.cxn1.baudrate)
     globals.cxn1.open()
@@ -227,14 +228,15 @@ def serialSendEx(debugMsg, serialMsg, delay, keepCxn=False):
             raise
     except:
         console.cwrite("Output thread is dead.  Will now open serial port manually.")
+        cxn = globals.cxn1
         try:
-            globals.cxn1.write(serialMsg)
+            cxn.write(serialMsg)
         except Exception as ex:
             console.cwrite("Error writing to the selected port; perhaps it is closed.  Will try opening it.  Details: %s" % ex)
             # TODO FIXME: Port name should be determined from an array of rowNum -> COM port
             cxn = None
             try:
-                cxn = serial.Serial(mw.ui.selRow1COM.currentText(), 9600)
+                cxn = serial.Serial(mw.ui.selRow1COM.currentText(), baudRates[baudRateIdx])
                 cxn.write(serialMsg)
             except Exception as ex:
                 console.cwrite("There was a problem opening the selected port (%s) and writing the desired message.  Please make sure you have a working COM port selected.\n" % mw.ui.selRow1COM.currentText())
@@ -246,7 +248,7 @@ def serialSendEx(debugMsg, serialMsg, delay, keepCxn=False):
             else:
                 globals.cxn1.close()
 
-def serialReadEx(len, msgWrapper, delay, keepCxn=False):
+def serialReadEx(msgLen, msgWrapper, delay, keepCxn=False):
     global outputThread
     try:
         if outputThread.isAlive():
@@ -261,7 +263,7 @@ def serialReadEx(len, msgWrapper, delay, keepCxn=False):
     except:
         try:
             sleep(delay)
-            message = globals.cxn1.read(len)
+            message = globals.cxn1.read(msgLen)
             console.cwrite(msgWrapper % message)
         except Exception as ex:
             console.cwrite("There was a problem opening the selected port (%s) and reading the desired message.  Please make sure you have a working COM port selected.\n" % mw.ui.selRow1COM.currentText())
@@ -418,12 +420,34 @@ def eraseMemoryOnAll():
 
 def viewFirmwareVersion(chipId):
     # Validate the input
-    chipAddr = isValidBoardAddress(chipId)
+    chipAddr = isValidBoardAddress(chipId) if (chipId != 64) else 64
     if chipAddr is None: return
     if chipAddr < 64:
         debugMsg = "Polling for firmware version on board %d red chip..." % chipAddr
         serialSendEx(debugMsg, globals.cmdPassword + "\xA0" + chr(int(chipAddr + 128)), 0.35, True)
         serialReadEx(3, "Red chip firmware version: %s", 0.35, True)
+        sleep(1)
+        debugMsg = "Polling for firmware version on board %d green chip..." % chipAddr
+        serialSendEx(debugMsg, globals.cmdPassword + "\xA0" + chr(int(chipAddr + 192)), 0.35, True)
+        serialReadEx(3, "Green chip firmware version: %s", 0.35, False)
+    elif chipAddr == 64:
+        boardCount = len(globals.boards)
+        for i in range(1, boardCount):
+            serMsg = ""
+            chipAddr = globals.boards[i - 1][2]
+            debugMsg = "Polling for firmware version on board %d red chip..." % chipAddr
+            serialSendEx(debugMsg, globals.cmdPassword + "\xA0" + chr(int(chipAddr + 128)), 0.35, True)
+            serialReadEx(3, "Red chip firmware version: %s", 0.35, False)
+            sleep(1)
+            debugMsg = "Polling for firmware version on board %d green chip..." % chipAddr
+            serialSendEx(debugMsg, globals.cmdPassword + "\xA0" + chr(int(chipAddr + 192)), 0.35, True)
+            serialReadEx(3, "Green chip firmware version: %s", 0.35, False)
+            sleep(1)
+        chipAddr = globals.boards[boardCount - 1][2]
+        debugMsg = "Polling for firmware version on board %d red chip..." % chipAddr
+        serialSendEx(debugMsg, globals.cmdPassword + "\xA0" + chr(int(chipAddr + 128)), 0.35, True)
+        serialReadEx(3, "Red chip firmware version: %s", 0.35, False)
+        sleep(1)
         debugMsg = "Polling for firmware version on board %d green chip..." % chipAddr
         serialSendEx(debugMsg, globals.cmdPassword + "\xA0" + chr(int(chipAddr + 192)), 0.35, True)
         serialReadEx(3, "Green chip firmware version: %s", 0.35, False)
@@ -433,6 +457,21 @@ def viewFirmwareVersion(chipId):
         serialReadEx(3, "Chip " + chipAddr.__str__() + " firmware version: %s", 0.35, False)
 
 def compressChipIDs(startsWith):
+    ''' Takes a marquee whose boards have at least somewhat evenly dispersed 
+        IDs and condenses those IDs into an incrementally ascending order.
+        For instance, with 4 boards {0, 16, 32, 48} offset = 0, and gap = 1, 
+        the new board address layout will be {0, 1, 2, 3).  Offset adjusts the 
+        starting number; gap adjusts the difference in assigned ID between 
+        boards (minimum gap is 1).
+
+        The first for loop spreads the IDs out evenly among the entire marquee,
+        correcting any "sag" where any board might have an address slightly 
+        lower than expected.  For each correct (expected) board ID from the 
+        marquee's end to start, take all chip IDs from (expected ID for the 
+        previous board) all the way up to (currect expected board - 1) and send
+        a command to reassign those boards with the address of the current 
+        expected board.
+    '''
     boardCount = len(globals.boards)
     for i in range(1, boardCount):
         serMsg = ""
@@ -441,12 +480,30 @@ def compressChipIDs(startsWith):
             serMsg += globals.cmdPassword + "\x84" + chr(j + 0xC0) + chr(i + 0xC0)
         serialSendEx("Compressing chip IDs...", serMsg, 2)
         #sleep(0.5)
-    msgIndexes = [i % 64 for i in range(startsWith, startsWith + boardCount)]
     serMsg = ""
     for i in range(startWith + boardCount - 1, startWith - 1, -1):
         serMsg += globals.cmdPassword + "\x84" + chr((i - boardCount) + 0x80) + chr(i + 0x80)
         serMsg += globals.cmdPassword + "\x84" + chr((i - boardCount) + 0xC0) + chr(i + 0xC0)
     serialSendEx("Resetting chip IDs...", serMsg, 2)
+
+def balanceChipIDs():
+    ''' If a long string of boards is being auto-addressed, sometimes the 
+        addresses in the middle will "sag" (be much lower than expected).  This
+        function will smooth out such imperfections with the electronic auto-
+        addressing logic.
+        
+        This appears to be the same as the 1st for loop in compressChipIDs().
+    '''
+    boardCount = len(globals.boards)
+    for i in xrange(boardCount - 1, 0, -1):
+        moveTo = globals.boards[i][2]
+        for j in range(globals.boards[i - 1][2] + 1, moveTo):
+            debugMsg = "%d goes to %d" % (j + 0x80, moveTo)
+            serialSendEx(debugMsg, globals.cmdPassword + "\x84" + chr(j + 0x80) + chr(moveTo + 0x80), 0.03, True)
+            debugMsg = "%d goes to %d" % (j + 0xC0, moveTo)
+            serialSendEx(debugMsg, globals.cmdPassword + "\x84" + chr(j + 0xC0) + chr(moveTo + 0xC0), 0.03, True)
+        serialSendEx("Cleaning up...", globals.cmdPassword + "\x84\x80\x80", 0.03)
+        #sleep(0.5)
 
 
 # This class represents our main window, and runs functions to initialize it
@@ -526,7 +583,10 @@ class MainWindow(QMainWindow):
     
     def toggleUSBFlavors(self, event):
         global OpenBriteUSBDevicesOnly
+        # Set the "OpenBriteUSBDevicesOnly" boolean value to "event" -- true or false depending on if the checkmark is toggled
         OpenBriteUSBDevicesOnly = event
+        # Refresh the available serial ports right away
+        serial_ports(mw)
 
     def toggleDumbEnumeration(self, event):
         print event
@@ -585,12 +645,12 @@ class MainWindow(QMainWindow):
         if activeConns == 1:
             serialWelcome("scroll")
         elif activeConns == 0:
-            globals.exitFlag = 1;
+            globals.exitFlag = 1
             try:
                 console.cwrite("Stopping IO thread...")
-                outputThread.join();
-                globals.exitFlag = 0;
-                outputThread = None;
+                outputThread.join()
+                globals.exitFlag = 0
+                outputThread = None
                 console.cwrite("IO thread stopped!")
             except AttributeError:
                 console.cwrite("Thread was probably already stopped")

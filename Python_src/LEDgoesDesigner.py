@@ -36,7 +36,10 @@ class DesignerWindow(QMainWindow):
         # Set up the user interface from Designer.
         self.ui = Ui_DesignerWindow()
         self.ui.setupUi(self)
-        self.setWindowIcon(QIcon('LEDgoes-Icon.ico'))
+        #self.setWindowIcon(QIcon('LEDgoes-Icon.ico'))
+
+        # Set listeners
+        self.ui.actionAbout_LEDgoes_PC_Interface.toggled.connect(self.showAbout)
         
         # Set up a monitor so things running in other threads can write to the Designer too
         self.ui.webView.page().setLinkDelegationPolicy(QWebPage.DelegateAllLinks)
@@ -53,6 +56,9 @@ class DesignerWindow(QMainWindow):
         link = link[30:]
         # Convert the returned data into a deque of tuples
         globals.boards = deque([tuple([int(s) for s in x.split(",")]) for x in link.split(";")])
+
+    def showAbout(self, event):
+        print "LEDgoes Designer v1.0\nCopyleft 2013-14 OpenBrite, LLC\n\nSee our GitHub repository at https://github.com/ledgoes/"
 
 
 ################################################################################

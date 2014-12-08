@@ -1,0 +1,278 @@
+<html>
+<head>
+<link rel="stylesheet" type="text/css" href="stylesheet.css" />
+<style type="text/css">
+body {
+    margin: 0px;
+}
+
+.tile-panel {
+    margin: 1px 1px 0px 0px;
+    background-color: #549;
+    width: 20px;
+    height: 28px;
+    position: absolute;
+}
+
+.tile-font {
+    margin: 1px 1px 0px 0px;
+    background-color: #333;
+    width: 20px;
+    height: 20px;
+    position: absolute;
+}
+
+.unselectable {
+    -moz-user-select: -moz-none;
+    -khtml-user-select: none;
+    -webkit-user-select: none;
+
+    /*
+      Introduced in IE 10.
+      See http://ie.microsoft.com/testdrive/HTML5/msUserSelect/
+    */
+    -ms-user-select: none;
+    user-select: none;
+}
+</style>
+
+<script type="text/javascript" src="SpinBox.js"></script>
+<script type="text/javascript">
+var doAddressing = true;  // whether or not to bother with the addressing feature; font maker turns this off
+var modeName = "panel";   // the mode name needs to be text for setting the right CSS class
+var mouseDown;            // is the mouse down
+var nextAddress = 0;      // stores how many boards have been drawn, plus the next address to assign
+var tileWidth;            // calculated width of the tile
+var tileHeight;           // calculated height of the tile
+
+function getQueryVariable(variable) {
+    var query = window.location.search.substring(1);
+    var vars = query.split('&');
+    for (var i = 0; i < vars.length; i++) {
+        var pair = vars[i].split('=');
+        if (decodeURIComponent(pair[0]) == variable) {
+            return decodeURIComponent(pair[1]);
+        }
+    }
+}
+
+window.onload = function() {
+    document.body.onmouseup = function() {
+        mouseDown = 0;
+    };
+    
+    if (getQueryVariable("mode") == "font") {
+        doAddressing = false;
+        modeName = "font";
+    }
+    
+    /////////////////////////////////////////////////////////////////
+    // Set up the tiles
+    /////////////////////////////////////////////////////////////////
+    var tileContainer = document.getElementById("tileContainer");
+    mouseStatus = document.getElementById("mouseIsOver");
+    // Install a dummy tile in order to get the tile size from CSS
+    tile = document.createElement("div");
+    tile.className = "tile-" + modeName + " unselectable";
+    tileContainer.appendChild(tile);
+    tileWidth = tile.offsetWidth + 1;
+    tileHeight = tile.offsetHeight + 1;
+    // Remove the dummy tile, and install all the tiles
+    maxY = (doAddressing) ? 64 : 7;
+    tileContainer.removeChild(tile);
+    addTiles(0, maxY, 0, 64);
+    // Now that all the elements are added, make sure the grid is scrolled all the way down
+    tileContainer.scrollTop = tileContainer.scrollHeight;
+    
+    /////////////////////////////////////////////////////////////////
+    // Set up other controls
+    /////////////////////////////////////////////////////////////////
+    var spinbox = new SpinBox('rowHeightSpinBox', {'value': 1, 'minimum': 1, 'maximum': 128});
+}
+
+function addTiles(minY, maxY, minX, maxX) {
+    for (y = minY; y < maxY; y++) {
+        for (x = minX; x < maxX; x++) {
+            tile = document.createElement("div");
+            tile.className = "tile-" + modeName + " unselectable";
+            tile.setAttribute('unselectable', 'on');
+            tile.setAttribute('data-row', (maxY + minY - 1) - y);
+            tile.setAttribute('data-col', x);
+            tile.onmouseover = function() {
+                // NOTE: IE might not like this; make it onmouseenter in IE if needed
+                mouseStatus.innerText = "\nRow: " + this.getAttribute('data-row') + "\nCol: " + this.getAttribute('data-col');
+                if (!(mouseDown))
+                    return;
+                if (doAddressing)
+                    handleAddress(this);
+                else
+                    handleLED(this);
+                updateLink();
+            };
+            tile.onmouseout = function() {
+                if (mouseDown)
+                    this.blur();
+            };
+            tile.onmousedown = function() {
+                if (doAddressing)
+                    handleAddress(this);
+                else
+                    handleLED(this);
+                updateLink();
+                mouseDown = 1;
+            }
+            tileContainer.appendChild(tile);
+            tile.style.left = x * tileWidth;
+            tile.style.top = (y - minY) * tileHeight;
+        }
+    }
+}
+
+function handleAddress(tile) {
+    hasAddress = (tile.getAttribute('data-sequential-address')) ? true: false;
+    if (hasAddress) {
+        // delete address
+        currentAddr = tile.getAttribute('data-sequential-address');
+        tile.removeAttribute('data-sequential-address');
+        tile.innerText = "";
+        tile.style.backgroundColor = "#549";
+        nextAddress--;
+        // move existing addresses back
+        higherPanels = document.querySelectorAll('[data-sequential-address]');
+        for (panel in higherPanels) {
+            if (isNaN(parseInt(panel)))
+                continue;
+            hp = higherPanels[panel];
+            hp.style.backgroundColor = "#F00";
+            if (parseInt(hp.getAttribute('data-sequential-address')) > parseInt(currentAddr)) {
+                newID = parseInt(hp.innerText) - 1;
+                hp.innerText = newID;
+                hp.setAttribute('data-sequential-address', newID);
+            }
+            hp.style.backgroundColor = "#FFD";
+        }
+    } else {
+        // assign address
+        tile.style.backgroundColor = "#FFD";
+        tile.innerText = nextAddress;
+        tile.setAttribute('data-sequential-address', nextAddress);
+        nextAddress++;
+    }
+    // if we're in Auto-Address mode, shuffle the displayed addresses
+    if (document.getElementById("addrAuto").checked)
+        shuffleAutoAddresses();
+    
+}
+
+function shuffleAutoAddresses() {
+    panels = document.querySelectorAll('[data-sequential-address]');
+    delta = 1024 / nextAddress;       // the auto-address line on each board should be equal to (1024 / # boards) * i
+    for (panel in panels) {
+        if (isNaN(parseInt(panel)))
+            continue;
+        p = panels[panel];
+        pid = parseInt(p.getAttribute('data-sequential-address'));
+        p.innerText = Math.floor( delta * pid / 16 );
+    }
+}
+
+function restoreManualAddresses() {
+    panels = document.querySelectorAll('[data-sequential-address]');
+    for (panel in panels) {
+        if (isNaN(parseInt(panel)))
+            continue;
+        panels[panel].innerText = panels[panel].getAttribute('data-sequential-address');
+    }    
+}
+
+function handleLED(tile) {
+    isLit = (tile.getAttribute('data-on')) ? true: false;
+    if (isLit) {
+        // delete address
+        tile.removeAttribute('data-on');
+        tile.style.backgroundColor = "#333";
+    } else {
+        // assign address
+        tile.style.backgroundColor = "#FF0";
+        tile.setAttribute('data-on', 'on');
+    }
+}
+
+function updateLink() {
+    if (modeName == "panel") {
+        panels = document.querySelectorAll('[data-sequential-address]');
+        panelTuples = [];
+        for (panel in panels) {
+            if (isNaN(parseInt(panel)))
+                continue;
+            //address = (document.getElementById("addrAuto").checked) ? panels[panel].getAttribute('data-sequential-address') : panels[panel].innerText;
+            address = panels[panel].innerText;
+            panelTuples[panel] = panels[panel].getAttribute('data-col') + "," +
+                                 panels[panel].getAttribute('data-row') + "," +
+                                 address;
+            document.getElementById("btnDone").href = "action://done_creating_layout/" + panelTuples.join(";");
+        }
+    } else {
+        panels = document.querySelectorAll('[data-on]');
+        //rowArray = 
+    }
+}
+
+function arrangeTiles() {
+    // Compare the current "height" spinbox value to its previous value
+    spinner = document.getElementById("rowHeight");
+    curVal = parseInt(spinner.value);
+    preVal = parseInt(spinner.getAttribute("data-old-value"));
+    offset = ((curVal - preVal) * tileHeight * 7);
+    // Raise or lower existing tiles, depending on what "offset" is
+    tiles = document.getElementsByClassName("tile-font");
+    for (tile in tiles) {
+        if (isNaN(tile))
+            continue;
+        tiles[tile].style.top = tiles[tile].offsetTop + offset;
+    }
+    if (curVal > preVal) {
+        // Add new tiles
+        addTiles(preVal * 7, curVal * 7, 0, 16);
+    } else if (curVal < preVal) {
+        // Start deleting some tiles... Go for the ones with the highest row indices
+        higherTiles = document.getElementsByClassName("tile-font");
+        for (i = higherTiles.length - 1; i >= 0; i--) {
+            ht = higherTiles[i];
+            if (parseInt(ht.getAttribute('data-row')) >= parseInt(curVal * 7)) {
+                tileContainer.removeChild(ht);
+            }
+        }
+    }
+    spinner.setAttribute("data-old-value", curVal);
+}
+
+function changeBasement() {
+}
+</script>
+</head>
+<body class="unselectable">
+<div id="sideTools" class="unselectable" unselectable="on" style="width: 20%; float: left; height: 100%; background-color: #EDE">Mouse is over:<span id="mouseIsOver"></span>
+    <div id="sideTools-panel">
+    </div>
+    <div id="sideTools-font">
+        Height (in rows): <span id="rowHeightSpinBox">
+            <input id="rowHeight" type="text" name="number" value="1" data-old-value="1" onchange="arrangeTiles()">
+        </span>
+        Basement: <span id="basementSpinBox">
+            <input id="basement" type="text" name="number" value="0" data-old-value="0" onchange="changeBasement()">
+        </span>
+        (Here is what the basement is... it's the space you want reserved for lowercase letters that extend downward, like g, p, & q)
+    </div>
+</div>
+<div id="tileContainer" class="unselectable" unselectable="on" style="width: 80%; float: left; height: 80%; overflow: auto; background-color: #A9A; position: relative">
+</div>
+<div id="bottomTools" style="width: 80%; clear: both; height: 20%; overflow: auto; background-color: #DED; position: absolute; bottom: 0px;">
+    <p>Select the desired addressing scheme: 
+        <input id="addrAuto" type="radio" name="addrScheme" value="auto" onclick="shuffleAutoAddresses()" checked />Auto-addressing
+        <input id="addrManual" type="radio" name="addrScheme" value="manual" onclick="restoreManualAddresses()" />Manual addressing
+    </p>
+    <a id="btnDone" href="#">Click here when you're done creating the layout</a>
+</div>
+</body>
+</html>
