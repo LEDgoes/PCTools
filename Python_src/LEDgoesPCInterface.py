@@ -456,7 +456,7 @@ def viewFirmwareVersion(chipId):
         serialSendEx(debugMsg, globals.cmdPassword + "\xA0" + chr(int(chipAddr)), 2, True)
         serialReadEx(3, "Chip " + chipAddr.__str__() + " firmware version: %s", 0.35, False)
 
-def compressChipIDs(startsWith):
+def compressChipIDs(startsWith, perceivedGap):
     ''' Takes a marquee whose boards have at least somewhat evenly dispersed 
         IDs and condenses those IDs into an incrementally ascending order.
         For instance, with 4 boards {0, 16, 32, 48} offset = 0, and gap = 1, 
@@ -471,8 +471,28 @@ def compressChipIDs(startsWith):
         previous board) all the way up to (currect expected board - 1) and send
         a command to reassign those boards with the address of the current 
         expected board.
+
+		The second for loop iterates backward through the boards in order to 
+		assign the highest desired ID first to the highest-addressed board so 
+		conflicts do not arise.  This loop sets the user's desired sequence 
+		after the first loop has changed the boards' addresses to predictable 
+		values.
     '''
     boardCount = len(globals.boards)
+    # Validate startsWith
+    startsWith = isValidBoardAddress(startsWith)
+    if startsWith is None: return
+    if startsWith > 63:
+        console.cwrite("You must specify a board address between 0 and 63 for the startsWith offset.")
+        return
+    # Validate the gap
+    try:
+        gap = int(perceivedGap)
+        if gap < 1 or gap > 32:
+            raise ValueError
+    except ValueError:
+        console.cwrite("Error: Gap \"%s\" is not valid.  The gap must be an integer ranging from 1 through 32.\n" % perceivedGap)
+        return None
     for i in range(1, boardCount):
         serMsg = ""
         for j in range(globals.boards[i - 1][2] + 1, globals.boards[i][2] + 1):
@@ -481,9 +501,9 @@ def compressChipIDs(startsWith):
         serialSendEx("Compressing chip IDs...", serMsg, 2)
         #sleep(0.5)
     serMsg = ""
-    for i in range(startWith + boardCount - 1, startWith - 1, -1):
-        serMsg += globals.cmdPassword + "\x84" + chr((i - boardCount) + 0x80) + chr(i + 0x80)
-        serMsg += globals.cmdPassword + "\x84" + chr((i - boardCount) + 0xC0) + chr(i + 0xC0)
+    for i in range(boardCount - 1, -1, -1):
+        serMsg += globals.cmdPassword + "\x84" + chr(i + 0x80) + chr(startsWith + (gap * i) + 0x80)
+        serMsg += globals.cmdPassword + "\x84" + chr(i + 0xC0) + chr(startsWith + (gap * i) + 0xC0)
     serialSendEx("Resetting chip IDs...", serMsg, 2)
 
 def balanceChipIDs():
@@ -875,13 +895,14 @@ class MainWindow(QMainWindow):
             self.ui.btnEraseSettings.hide()
         elif fwOp == 2000:
             # Compress Chip IDs
-            self.ui.lblFwOpHelp.setText('Reduces IDs to sequential numbers: e.g. 0, 16, 32, 48 becomes 0, 1, 2, 3. "Start with" adds an offset to the IDs.')
+            self.ui.lblFwOpHelp.setText('Changes sequence of IDs: e.g. 0, 16, 32, 48 can become 0, 1, 2, 3. "Start with" adds initial offset. "Gap" specifies common difference.')
             self.ui.lblSrcBoard.show()
             self.ui.txtSrcBoard.show()
             self.ui.btnAllBoards.hide()
             self.ui.lblSrcBoard.setText("Start with:")
-            self.ui.lblTargetBoard.hide()
-            self.ui.txtTargetBoard.hide()
+            self.ui.lblTargetBoard.show()
+            self.ui.txtTargetBoard.show()
+            self.ui.lblTargetBoard.setText("Gap:")
             self.ui.btnExecFwOp.setText("Go!")
             self.ui.btnEraseSettings.hide()
 
@@ -893,7 +914,7 @@ class MainWindow(QMainWindow):
         try:
             fwOp = self.ui.fwOpsList.selectedItems()[0].type()
             id = self.ui.txtSrcBoard.toPlainText() if self.ui.txtSrcBoard.toPlainText() != "All" else 64
-            if fwOp == 1132:
+            if fwOp == 1132 or fwOp == 2000:
                 id2 = self.ui.txtTargetBoard.toPlainText()
         except Exception as ex:
             print ex
@@ -927,7 +948,7 @@ class MainWindow(QMainWindow):
             viewFirmwareVersion(id)
         elif fwOp == 2000:
             # Compress Chip IDs
-            compressChipIDs(id)
+            compressChipIDs(id, id2)
 
     def eraseSomething(self, event):
         # Find out what item (firmware operation) is selected, then do it
