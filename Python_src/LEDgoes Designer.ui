@@ -38,7 +38,7 @@
      <widget class="QWebView" name="webView">
       <property name="url">
        <url>
-        <string>file:///C:/Users/Stephen/Desktop/LEDgoesDrawingTool.html</string>
+        <string>file:///C:/Python27/LEDgoesDrawingTool.html</string>
        </url>
       </property>
      </widget>

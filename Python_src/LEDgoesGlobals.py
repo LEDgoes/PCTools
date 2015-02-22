@@ -10,7 +10,7 @@ html = u'<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/
 initMsgs = [html % '<span style=" color:#808000;"> :: AWAITING MESSAGES  </span>']
 
 animTuple = None          # Tuple containing deques of each band (RGB), themselves containing a matrix of each frame
-boards = deque()          # Number of boards being used in the matrix
+boards = deque()          # Location of boards present in the marquee
 cxn1 = serial.Serial()    # Connection for row 1
 cxn2 = serial.Serial()    # Connection for row 2
 cw = None                 # Console window

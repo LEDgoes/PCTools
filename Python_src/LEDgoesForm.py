@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'LEDgoes PC Interface.ui'
 #
-# Created: Fri Jul 18 00:17:59 2014
+# Created: Sat Feb 21 22:18:57 2015
 #      by: PyQt5 UI code generator 5.1.1
 #
 # WARNING! All changes made in this file will be lost!
@@ -403,13 +403,13 @@ class Ui_MainWindow(object):
         self.gridLayout_5.setContentsMargins(0, 0, 0, 0)
         self.gridLayout_5.setObjectName("gridLayout_5")
         self.lblDisplayRows = QtWidgets.QLabel(self.gridLayoutWidget_5)
-        self.lblDisplayRows.setEnabled(False)
+        self.lblDisplayRows.setEnabled(True)
         self.lblDisplayRows.setObjectName("lblDisplayRows")
         self.gridLayout_5.addWidget(self.lblDisplayRows, 0, 0, 1, 1)
         self.spinRows = QtWidgets.QSpinBox(self.gridLayoutWidget_5)
-        self.spinRows.setEnabled(False)
+        self.spinRows.setEnabled(True)
         self.spinRows.setMinimum(1)
-        self.spinRows.setMaximum(128)
+        self.spinRows.setMaximum(64)
         self.spinRows.setObjectName("spinRows")
         self.gridLayout_5.addWidget(self.spinRows, 0, 1, 1, 1)
         self.chkMultiplexed = QtWidgets.QCheckBox(self.gridLayoutWidget_5)
@@ -427,7 +427,7 @@ class Ui_MainWindow(object):
         self.gridLayout_6.addWidget(self.lblPanelsPerRow, 0, 0, 1, 1)
         self.label = QtWidgets.QLabel(self.gridLayoutWidget_6)
         self.label.setObjectName("label")
-        self.gridLayout_6.addWidget(self.label, 3, 0, 1, 1)
+        self.gridLayout_6.addWidget(self.label, 4, 0, 1, 1)
         self.spinPanelsPerRow = QtWidgets.QSpinBox(self.gridLayoutWidget_6)
         self.spinPanelsPerRow.setMinimum(1)
         self.spinPanelsPerRow.setMaximum(64)
@@ -439,14 +439,14 @@ class Ui_MainWindow(object):
         self.spinUpdateDelay.setMaximum(1000)
         self.spinUpdateDelay.setProperty("value", 60)
         self.spinUpdateDelay.setObjectName("spinUpdateDelay")
-        self.gridLayout_6.addWidget(self.spinUpdateDelay, 3, 1, 1, 1)
-        self.btnCustomLayout = QtWidgets.QPushButton(self.gridLayoutWidget_6)
-        self.btnCustomLayout.setObjectName("btnCustomLayout")
-        self.gridLayout_6.addWidget(self.btnCustomLayout, 1, 0, 1, 1)
+        self.gridLayout_6.addWidget(self.spinUpdateDelay, 4, 1, 1, 1)
         self.label_6 = QtWidgets.QLabel(self.gridLayoutWidget_6)
         self.label_6.setText("")
         self.label_6.setObjectName("label_6")
-        self.gridLayout_6.addWidget(self.label_6, 2, 0, 1, 1)
+        self.gridLayout_6.addWidget(self.label_6, 3, 0, 1, 1)
+        self.btnCustomLayout = QtWidgets.QPushButton(self.gridLayoutWidget_6)
+        self.btnCustomLayout.setObjectName("btnCustomLayout")
+        self.gridLayout_6.addWidget(self.btnCustomLayout, 2, 0, 1, 1)
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
         self.menubar.setGeometry(QtCore.QRect(0, 0, 621, 21))
@@ -531,7 +531,7 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "LEDgoes PC Interface"))
+        MainWindow.setWindowTitle(_translate("MainWindow", "BriteBlox PC Interface"))
         self.gridGroupBox.setTitle(_translate("MainWindow", "Communication Properties"))
         self.lblRow2COMPort.setText(_translate("MainWindow", "Row 2 COM Port:"))
         self.lblRow1COMPort.setText(_translate("MainWindow", "Row 1 COM Port:"))
@@ -592,7 +592,7 @@ class Ui_MainWindow(object):
 "<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
 "p, li { white-space: pre-wrap; }\n"
 "</style></head><body style=\" font-family:\'MS Shell Dlg 2\'; font-size:8.25pt; font-weight:400; font-style:normal;\">\n"
-"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-size:8pt;\"></span></p></body></html>"))
+"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-size:8pt;\">C:\\Users\\Stephen\\Videos\\LEDgoes_anim.gif</span></p></body></html>"))
         self.btnAnim.setToolTip(_translate("MainWindow", "<html><head/><body><p>Displays the animation on the marquee.</p></body></html>"))
         self.btnAnim.setText(_translate("MainWindow", "Send"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabAnimation), _translate("MainWindow", "Animation"))
@@ -637,8 +637,8 @@ class Ui_MainWindow(object):
         self.btnCustomLayout.setText(_translate("MainWindow", "Custom Layout..."))
         self.menuSettings.setTitle(_translate("MainWindow", "Settings"))
         self.menuHelp.setTitle(_translate("MainWindow", "Help"))
-        self.actionAbout_LEDgoes_PC_Interface.setText(_translate("MainWindow", "About LEDgoes PC Interface..."))
-        self.actionUSB_Device_Selection.setText(_translate("MainWindow", "Show Only LEDgoes Communicators"))
+        self.actionAbout_LEDgoes_PC_Interface.setText(_translate("MainWindow", "About BriteBlox PC Interface..."))
+        self.actionUSB_Device_Selection.setText(_translate("MainWindow", "Show Only BriteBlox Communicators"))
         self.actionDumb_Enumeration.setText(_translate("MainWindow", "Dumb Enumeration"))
         self.actionRefresh_COM_Ports.setText(_translate("MainWindow", "Refresh COM Ports"))
 

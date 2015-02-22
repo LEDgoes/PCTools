@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>LEDgoes PC Interface</string>
+   <string>BriteBlox PC Interface</string>
   </property>
   <property name="windowIcon">
    <iconset>
@@ -1183,7 +1183,7 @@ p, li { white-space: pre-wrap; }
       <item row="0" column="0">
        <widget class="QLabel" name="lblDisplayRows">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="text">
          <string>Rows:</string>
@@ -1193,13 +1193,13 @@ p, li { white-space: pre-wrap; }
       <item row="0" column="1">
        <widget class="QSpinBox" name="spinRows">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="minimum">
          <number>1</number>
         </property>
         <property name="maximum">
-         <number>128</number>
+         <number>64</number>
         </property>
        </widget>
       </item>
@@ -1232,7 +1232,7 @@ p, li { white-space: pre-wrap; }
         </property>
        </widget>
       </item>
-      <item row="3" column="0">
+      <item row="4" column="0">
        <widget class="QLabel" name="label">
         <property name="text">
          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Update Delay (ms):&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
@@ -1255,7 +1255,7 @@ p, li { white-space: pre-wrap; }
         </property>
        </widget>
       </item>
-      <item row="3" column="1">
+      <item row="4" column="1">
        <widget class="QSpinBox" name="spinUpdateDelay">
         <property name="toolTip">
          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Change this value to adjust the scroll rate of the marquee.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
@@ -1271,17 +1271,17 @@ p, li { white-space: pre-wrap; }
         </property>
        </widget>
       </item>
-      <item row="1" column="0">
-       <widget class="QPushButton" name="btnCustomLayout">
+      <item row="3" column="0">
+       <widget class="QLabel" name="label_6">
         <property name="text">
-         <string>Custom Layout...</string>
+         <string/>
         </property>
        </widget>
       </item>
       <item row="2" column="0">
-       <widget class="QLabel" name="label_6">
+       <widget class="QPushButton" name="btnCustomLayout">
         <property name="text">
-         <string/>
+         <string>Custom Layout...</string>
         </property>
        </widget>
       </item>
@@ -1319,7 +1319,7 @@ p, li { white-space: pre-wrap; }
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionAbout_LEDgoes_PC_Interface">
    <property name="text">
-    <string>About LEDgoes PC Interface...</string>
+    <string>About BriteBlox PC Interface...</string>
    </property>
   </action>
   <action name="actionUSB_Device_Selection">
@@ -1330,7 +1330,7 @@ p, li { white-space: pre-wrap; }
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>Show Only LEDgoes Communicators</string>
+    <string>Show Only BriteBlox Communicators</string>
    </property>
   </action>
   <action name="actionDumb_Enumeration">

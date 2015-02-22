@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'LEDgoes Designer.ui'
 #
-# Created: Sun Jul 13 15:18:11 2014
+# Created: Fri Jan 02 22:36:51 2015
 #      by: PyQt5 UI code generator 5.1.1
 #
 # WARNING! All changes made in this file will be lost!
@@ -23,7 +23,7 @@ class Ui_DesignerWindow(object):
         self.verticalLayout.setContentsMargins(0, 0, 0, 0)
         self.verticalLayout.setObjectName("verticalLayout")
         self.webView = QtWebKitWidgets.QWebView(self.centralwidget)
-        self.webView.setUrl(QtCore.QUrl("file://LEDgoesDrawingTool.html"))
+        self.webView.setUrl(QtCore.QUrl("about:blank"))
         self.webView.setObjectName("webView")
         self.verticalLayout.addWidget(self.webView)
         DesignerWindow.setCentralWidget(self.centralwidget)

@@ -1,8 +1,8 @@
 '''
-Welcome to the LEDgoes PC Tools!  This file features inialization of the fonts and UI.
+Welcome to the BriteBlox PC Tools!  This file features inialization of the fonts and UI.
 
 To recompile any changes to the UI, run at the command prompt:
-pyuic5 -o LEDgoesForm.py "C:\Users\Stephen\Documents\LEDgoes PC Interface.ui"
+pyuic5 -o LEDgoesForm.py "C:\Python27\LEDgoes PC Interface.ui"
 
 Requires pywin32 - http://sourceforge.net/projects/pywin32/files/pywin32/Build%20218/
 Requires pil
@@ -160,7 +160,7 @@ for filename in glob.glob("*.ledfont"):
         console.cwrite("Error loading font %s" % filename)
         if fontWarningsEnabled:
             msgBox = QMessageBox()
-            msgBox.setWindowTitle("LEDgoes PC Interface")
+            msgBox.setWindowTitle("BriteBlox PC Interface")
             msgBox.setText("Error parsing font")
             msgBox.setInformativeText("There appears to be a syntax error in font file %s, and it has not been loaded.  Press OK to continue, or Ignore to continue and suppress future messages of this type." % filename)
             msgBox.setStandardButtons(QMessageBox.Ok | QMessageBox.Ignore)
@@ -176,7 +176,7 @@ for filename in glob.glob("*.ledfont"):
 # Die if there are no fonts
 if len(globals.font) == 0:
     msgBox = QMessageBox()
-    msgBox.setWindowTitle("LEDgoes PC Interface")
+    msgBox.setWindowTitle("BriteBlox PC Interface")
     msgBox.setText("Fatal error; cannot start")
     msgBox.setInformativeText("No fonts were successfully loaded from the working directory of LEDgoes PC Interface.  Font files (*.ledfont) can be downloaded from http://www.ledgoes.com.")
     msgBox.setStandardButtons(QMessageBox.Ok)
@@ -188,7 +188,7 @@ if len(globals.font) == 0:
 # Read the configuration file
 OpenBriteUSBDevicesOnly = True
 config = ConfigParser.ConfigParser()
-if config.read('ledgoes.ini') != []:
+if config.read('briteblox.ini') != []:
     # Set the third, optional argument of get to 1 if you wish to use raw mode.
     OpenBriteUSBDevicesOnly = config.getboolean('Communication', 'OpenBriteUSBDevicesOnly')
 
@@ -241,12 +241,13 @@ def serialSendEx(debugMsg, serialMsg, delay, keepCxn=False):
             except Exception as ex:
                 console.cwrite("There was a problem opening the selected port (%s) and writing the desired message.  Please make sure you have a working COM port selected.\n" % mw.ui.selRow1COM.currentText())
                 console.cwrite("Details: %s" % ex)
-                return
+                return False
             console.cwrite("Finished writing the desired message.\n")
             if keepCxn:
                 globals.cxn1 = cxn
             else:
                 globals.cxn1.close()
+    return True
 
 def serialReadEx(msgLen, msgWrapper, delay, keepCxn=False):
     global outputThread
@@ -269,16 +270,34 @@ def serialReadEx(msgLen, msgWrapper, delay, keepCxn=False):
             console.cwrite("There was a problem opening the selected port (%s) and reading the desired message.  Please make sure you have a working COM port selected.\n" % mw.ui.selRow1COM.currentText())
             console.cwrite("Details: %s" % ex)
             globals.cxn1.close()
-            return
+            return False
         if not keepCxn:
             globals.cxn1.close()
+    return True
             
 def _updateBoards(numBoards):
+    rows = mw.ui.spinRows.value()
     globals.boards.clear()              # empty the list of board indexes
-    #globals.boards.extend(range(0, 32))
-    delta = 1024 / numBoards            # the auto-address line on each board should be equal to (1024 / # boards) * i
-    for i in range(0, numBoards):
-        globals.boards.extend([(i, 0, int( delta * i / 16 ))])
+    delta = 1024 / (numBoards * rows)      # the auto-address line on each board should be equal to (1024 / # boards) * i
+    if rows == 1:
+        # Standard arrangement -- one row worth of numBoards panels
+        for i in range(0, numBoards):
+            globals.boards.extend([(i, 0, int( delta * i / 16 ))])
+    else:
+        if True:    # TODO: this should be based on if Multiplexed is set or not
+            # Multi-row arrangement -- 0 on top left, 63 on bottom right, no snake; each row has numBoards worth of panels
+            for r in range(0, rows):
+                for i in range(0, numBoards):
+                    boardIdx = (r * numBoards) + i
+                    globals.boards.extend([(i, rows - r - 1, int( delta * boardIdx / 16 ))])
+        else:
+            # Multi-row arrangement -- multiplexed so that 0 is on top row, 1 is on 2nd row, ...
+            counter = 0
+            for r in range(0, rows):
+                for i in range(0, numBoards):
+                    globals.boards.extend([(i, r, counter)])
+                    counter += 1
+    print globals.boards
 
 def isValidBoardAddress(address):
     number = 0
@@ -374,7 +393,8 @@ def saveChipID(chipId):
     elif chipAddr == 64:
         # Save All IDs
         for i in range(128, 256):
-            serialSendEx("Saving chip ID " + i.__str__() + " to the chip...", globals.cmdPassword + "\x85" + chr(i), 0.002)
+            if not serialSendEx("Saving chip ID " + i.__str__() + " to the chip...", globals.cmdPassword + "\x85" + chr(i), 0.002):
+                break
         console.cwrite("Done saving all chip IDs.  Sorry for all the messages; we'll reduce the extraneous output later.")
 
 def eraseChipID(chipId):
@@ -390,7 +410,8 @@ def eraseChipID(chipId):
     elif chipAddr == 64:
         # Erase All IDs
         for i in range(128, 256):
-            serialSendEx("Erasing chip ID " + i.__str__() + " from the chip...", globals.cmdPassword + "\x86" + chr(i), 0.002)
+            if not serialSendEx("Erasing chip ID " + i.__str__() + " from the chip...", globals.cmdPassword + "\x86" + chr(i), 0.002):
+                break
         console.cwrite("Done erasing all chip IDs.  Sorry for all the messages; we'll reduce the extraneous output later.")
 
 def saveBaudRate(chipId):
@@ -436,12 +457,16 @@ def viewFirmwareVersion(chipId):
             serMsg = ""
             chipAddr = globals.boards[i - 1][2]
             debugMsg = "Polling for firmware version on board %d red chip..." % chipAddr
-            serialSendEx(debugMsg, globals.cmdPassword + "\xA0" + chr(int(chipAddr + 128)), 0.35, True)
-            serialReadEx(3, "Red chip firmware version: %s", 0.35, False)
+            if not serialSendEx(debugMsg, globals.cmdPassword + "\xA0" + chr(int(chipAddr + 128)), 0.35, True):
+                break
+            if not serialReadEx(3, "Red chip firmware version: %s", 0.35, False):
+                break
             sleep(1)
             debugMsg = "Polling for firmware version on board %d green chip..." % chipAddr
-            serialSendEx(debugMsg, globals.cmdPassword + "\xA0" + chr(int(chipAddr + 192)), 0.35, True)
-            serialReadEx(3, "Green chip firmware version: %s", 0.35, False)
+            if not serialSendEx(debugMsg, globals.cmdPassword + "\xA0" + chr(int(chipAddr + 192)), 0.35, True):
+                break
+            if not serialReadEx(3, "Green chip firmware version: %s", 0.35, False):
+                break
             sleep(1)
         chipAddr = globals.boards[boardCount - 1][2]
         debugMsg = "Polling for firmware version on board %d red chip..." % chipAddr
@@ -464,15 +489,7 @@ def compressChipIDs(startsWith, perceivedGap):
         starting number; gap adjusts the difference in assigned ID between 
         boards (minimum gap is 1).
 
-        The first for loop spreads the IDs out evenly among the entire marquee,
-        correcting any "sag" where any board might have an address slightly 
-        lower than expected.  For each correct (expected) board ID from the 
-        marquee's end to start, take all chip IDs from (expected ID for the 
-        previous board) all the way up to (currect expected board - 1) and send
-        a command to reassign those boards with the address of the current 
-        expected board.
-
-		The second for loop iterates backward through the boards in order to 
+		The for loop iterates backward through the boards in order to 
 		assign the highest desired ID first to the highest-addressed board so 
 		conflicts do not arise.  This loop sets the user's desired sequence 
 		after the first loop has changed the boards' addresses to predictable 
@@ -493,36 +510,29 @@ def compressChipIDs(startsWith, perceivedGap):
     except ValueError:
         console.cwrite("Error: Gap \"%s\" is not valid.  The gap must be an integer ranging from 1 through 32.\n" % perceivedGap)
         return None
-    for i in range(1, boardCount):
-        serMsg = ""
-        for j in range(globals.boards[i - 1][2] + 1, globals.boards[i][2] + 1):
-            serMsg += globals.cmdPassword + "\x84" + chr(j + 0x80) + chr(i + 0x80)
-            serMsg += globals.cmdPassword + "\x84" + chr(j + 0xC0) + chr(i + 0xC0)
-        serialSendEx("Compressing chip IDs...", serMsg, 2)
-        #sleep(0.5)
     serMsg = ""
+    balanceChipIDs(boardCount)
     for i in range(boardCount - 1, -1, -1):
         serMsg += globals.cmdPassword + "\x84" + chr(i + 0x80) + chr(startsWith + (gap * i) + 0x80)
         serMsg += globals.cmdPassword + "\x84" + chr(i + 0xC0) + chr(startsWith + (gap * i) + 0xC0)
     serialSendEx("Resetting chip IDs...", serMsg, 2)
 
-def balanceChipIDs():
-    ''' If a long string of boards is being auto-addressed, sometimes the 
-        addresses in the middle will "sag" (be much lower than expected).  This
-        function will smooth out such imperfections with the electronic auto-
-        addressing logic.
-        
-        This appears to be the same as the 1st for loop in compressChipIDs().
+def balanceChipIDs(boardCount):
+    ''' This for loop spreads the IDs out evenly among the entire marquee,
+        correcting any "sag" where any board might have an address slightly 
+        lower than expected.  For each correct (expected) board ID from the 
+        marquee's end to start, take all chip IDs from (expected ID for the 
+        previous board) all the way up to (currect expected board - 1) and send
+        a command to reassign those boards with the address of the current 
+        expected board.
     '''
-    boardCount = len(globals.boards)
-    for i in xrange(boardCount - 1, 0, -1):
-        moveTo = globals.boards[i][2]
-        for j in range(globals.boards[i - 1][2] + 1, moveTo):
-            debugMsg = "%d goes to %d" % (j + 0x80, moveTo)
-            serialSendEx(debugMsg, globals.cmdPassword + "\x84" + chr(j + 0x80) + chr(moveTo + 0x80), 0.03, True)
-            debugMsg = "%d goes to %d" % (j + 0xC0, moveTo)
-            serialSendEx(debugMsg, globals.cmdPassword + "\x84" + chr(j + 0xC0) + chr(moveTo + 0xC0), 0.03, True)
-        serialSendEx("Cleaning up...", globals.cmdPassword + "\x84\x80\x80", 0.03)
+    for i in range(1, boardCount):
+        serMsg = ""
+        for j in range(globals.boards[i - 1][2] + 1, globals.boards[i][2] + 1):
+            serMsg += globals.cmdPassword + "\x84" + chr(j + 0x80) + chr(i + 0x80)
+            serMsg += globals.cmdPassword + "\x84" + chr(j + 0xC0) + chr(i + 0xC0)
+        if not serialSendEx("Compressing chip IDs...", serMsg, 2):
+            break
         #sleep(0.5)
 
 
@@ -552,6 +562,7 @@ class MainWindow(QMainWindow):
         self.ui.actionAbout_LEDgoes_PC_Interface.triggered.connect(self.showAbout)
         # Main panels on top
         self.ui.spinUpdateDelay.valueChanged.connect(self.updateDelay)
+        self.ui.spinRows.valueChanged.connect(self.updateBoards)
         self.ui.spinPanelsPerRow.valueChanged.connect(self.updateBoards)
         self.ui.btnCustomLayout.clicked.connect(self.openDesigner)
         self.ui.selSpeed.activated.connect(self.updateSpeed)
@@ -578,7 +589,7 @@ class MainWindow(QMainWindow):
                # This changes the chip ID from Target to Desired
         #self.ui.btnSetChipID.clicked.connect(lambda: self.setChipID(self.ui.txtChipIDTarget, self.ui.txtChipIDDesired))
         #self.ui.btnEraseMemoryOnAll.clicked.connect(self.eraseMemoryOnAll)
-        self.ui.fwOpsList.itemSelectionChanged.connect(self.showFwHelp)
+        self.ui.fwOpsList.itemSelectionChanged.connect(self.setupFwOpPanel)
         self.ui.btnAllBoards.clicked.connect(self.selectAllBoards)
         self.ui.btnExecFwOp.clicked.connect(self.executeFwOp)
         self.ui.btnEraseSettings.clicked.connect(self.eraseSomething)
@@ -612,7 +623,14 @@ class MainWindow(QMainWindow):
         print event
 
     def showAbout(self, event):
-        print "LEDgoes PC Interface v1.1\nCopyleft 2013-14 OpenBrite, LLC\n\nSee our GitHub repository at https://github.com/ledgoes/"
+        msgBox = QMessageBox()
+        msgBox.setWindowTitle("About")
+        msgBox.setText("BriteBlox PC Interface, Version 1.2 - 2/21/2015")
+        msgBox.setInformativeText("Copyleft 2013-15 OpenBrite, LLC\n\nSee our GitHub repository at https://github.com/ledgoes/")
+        msgBox.setStandardButtons(QMessageBox.Ok)
+        msgBox.setDefaultButton(QMessageBox.Ok)
+        msgBox.setIcon(QMessageBox.Warning)
+        ret = msgBox.exec_()
 
     # @Override
     # Triggers when the main window is closed by the user.  Initiates graceful application shutdown.
@@ -629,6 +647,11 @@ class MainWindow(QMainWindow):
         
     def updateSpeed(self, speed):
         global baudRateIdx
+        # baudRateIdx is the old baud rate the boards were running at; speed is the desired baud rate
+        serialMsg = "%s%s" % (globals.cmdPassword, chr(0x90 + speed))
+        # Send a message to the panels to run at the desired rate
+        serialSendEx("Changing baud rate from %s to %s..." % (baudRates[baudRateIdx], baudRates[speed]), serialMsg, 1)
+		# Now set the "old baud rate index" to the present index, since we're done talking at the old baud rate
         baudRateIdx = speed
         
     def toggleRow(self, rowNum):
@@ -730,7 +753,7 @@ class MainWindow(QMainWindow):
     def pushMessage(self, event):
         if self.ui.txtMessage.toPlainText() == "":
             msgBox = QMessageBox()
-            msgBox.setWindowTitle("LEDgoes PC Interface")
+            msgBox.setWindowTitle("BriteBlox PC Interface")
             msgBox.setText("Error: No empty messages allowed")
             msgBox.setInformativeText("You cannot push an empty message onto the stack.")
             msgBox.setStandardButtons(QMessageBox.Ok)
@@ -787,7 +810,7 @@ class MainWindow(QMainWindow):
         # Just make the box say "All" - the program will pick up on that keyword
         self.ui.txtSrcBoard.setPlainText("All")
 
-    def showFwHelp(self):
+    def setupFwOpPanel(self):
         # Find out what item (firmware operation) is selected, then do it
         fwOp = 0
         try:
@@ -797,10 +820,10 @@ class MainWindow(QMainWindow):
         if fwOp == 1128:
             # show test pattern
             self.ui.lblFwOpHelp.setText("Shows the test pattern on the specified board(s), normally consisting of the board ID.")
+            self.ui.lblSrcBoard.setText("On:")
             self.ui.lblSrcBoard.show()
             self.ui.txtSrcBoard.show()
             self.ui.btnAllBoards.show()
-            self.ui.lblSrcBoard.setText("On:")
             self.ui.lblTargetBoard.hide()
             self.ui.txtTargetBoard.hide()
             self.ui.btnExecFwOp.setText("Go!")
@@ -808,10 +831,10 @@ class MainWindow(QMainWindow):
         elif fwOp == 1130:
             # increment chip ID
             self.ui.lblFwOpHelp.setText("Adds 1 to the specified board or chip ID.  Make sure no other device has the resulting ID.")
+            self.ui.lblSrcBoard.setText("Current ID:")
             self.ui.lblSrcBoard.show()
             self.ui.txtSrcBoard.show()
             self.ui.btnAllBoards.hide()
-            self.ui.lblSrcBoard.setText("Current ID:")
             self.ui.lblTargetBoard.hide()
             self.ui.txtTargetBoard.hide()
             self.ui.btnExecFwOp.setText("Go!")
@@ -819,10 +842,10 @@ class MainWindow(QMainWindow):
         elif fwOp == 1131:
             # decrement chip ID
             self.ui.lblFwOpHelp.setText("Subtracts 1 from the specified board or chip ID.  Make sure no other device has the resulting ID.")
+            self.ui.lblSrcBoard.setText("Current ID:")
             self.ui.lblSrcBoard.show()
             self.ui.txtSrcBoard.show()
             self.ui.btnAllBoards.hide()
-            self.ui.lblSrcBoard.setText("Current ID:")
             self.ui.lblTargetBoard.hide()
             self.ui.txtTargetBoard.hide()
             self.ui.btnExecFwOp.setText("Go!")
@@ -830,10 +853,11 @@ class MainWindow(QMainWindow):
         elif fwOp == 1132:
             # change chip ID
             self.ui.lblFwOpHelp.setText("Changes the current board or chip ID to the desired value.  Make sure no other device has the desired ID.")
+            self.ui.lblSrcBoard.setText("Current ID:")
             self.ui.lblSrcBoard.show()
             self.ui.txtSrcBoard.show()
             self.ui.btnAllBoards.hide()
-            self.ui.lblSrcBoard.setText("Current ID:")
+            self.ui.lblTargetBoard.setText("Desired ID:")
             self.ui.lblTargetBoard.show()
             self.ui.txtTargetBoard.show()
             self.ui.btnExecFwOp.setText("Go!")
@@ -844,7 +868,6 @@ class MainWindow(QMainWindow):
             self.ui.lblSrcBoard.hide()
             self.ui.txtSrcBoard.hide()
             self.ui.btnAllBoards.hide()
-            self.ui.lblSrcBoard.setText("On:")
             self.ui.lblTargetBoard.hide()
             self.ui.txtTargetBoard.hide()
             self.ui.btnExecFwOp.setText("Go!")
@@ -852,10 +875,10 @@ class MainWindow(QMainWindow):
         elif fwOp == 1133:
             # Save/Erase Chip ID
             self.ui.lblFwOpHelp.setText('Hit "Save" to commit the chip or board ID to the specified device\'s memory.  Hit "Erase" to erase it.')
+            self.ui.lblSrcBoard.setText("On:")
             self.ui.lblSrcBoard.show()
             self.ui.txtSrcBoard.show()
             self.ui.btnAllBoards.show()
-            self.ui.lblSrcBoard.setText("On:")
             self.ui.lblTargetBoard.hide()
             self.ui.txtTargetBoard.hide()
             self.ui.btnExecFwOp.setText("Save")
@@ -866,7 +889,6 @@ class MainWindow(QMainWindow):
             self.ui.lblSrcBoard.hide()
             self.ui.txtSrcBoard.hide()
             self.ui.btnAllBoards.hide()
-            self.ui.lblSrcBoard.setText("On:")
             self.ui.lblTargetBoard.hide()
             self.ui.txtTargetBoard.hide()
             self.ui.btnExecFwOp.setText("Save")
@@ -877,18 +899,17 @@ class MainWindow(QMainWindow):
             self.ui.lblSrcBoard.hide()
             self.ui.txtSrcBoard.hide()
             self.ui.btnAllBoards.hide()
-            self.ui.lblSrcBoard.setText("On:")
             self.ui.lblTargetBoard.hide()
             self.ui.txtTargetBoard.hide()
             self.ui.btnExecFwOp.setText("Go!")
             self.ui.btnEraseSettings.hide()
         elif fwOp == 1160:
-            # Erase All Settings
+            # View Firmware Version
             self.ui.lblFwOpHelp.setText("Displays the firmware version installed on the specified board(s) on the console.")
+            self.ui.lblSrcBoard.setText("On:")
             self.ui.lblSrcBoard.show()
             self.ui.txtSrcBoard.show()
             self.ui.btnAllBoards.show()
-            self.ui.lblSrcBoard.setText("On:")
             self.ui.lblTargetBoard.hide()
             self.ui.txtTargetBoard.hide()
             self.ui.btnExecFwOp.setText("Go!")
@@ -896,13 +917,13 @@ class MainWindow(QMainWindow):
         elif fwOp == 2000:
             # Compress Chip IDs
             self.ui.lblFwOpHelp.setText('Changes sequence of IDs: e.g. 0, 16, 32, 48 can become 0, 1, 2, 3. "Start with" adds initial offset. "Gap" specifies common difference.')
+            self.ui.lblSrcBoard.setText("Start with:")
             self.ui.lblSrcBoard.show()
             self.ui.txtSrcBoard.show()
             self.ui.btnAllBoards.hide()
-            self.ui.lblSrcBoard.setText("Start with:")
+            self.ui.lblTargetBoard.setText("Gap:")
             self.ui.lblTargetBoard.show()
             self.ui.txtTargetBoard.show()
-            self.ui.lblTargetBoard.setText("Gap:")
             self.ui.btnExecFwOp.setText("Go!")
             self.ui.btnEraseSettings.hide()
 
@@ -916,6 +937,8 @@ class MainWindow(QMainWindow):
             id = self.ui.txtSrcBoard.toPlainText() if self.ui.txtSrcBoard.toPlainText() != "All" else 64
             if fwOp == 1132 or fwOp == 2000:
                 id2 = self.ui.txtTargetBoard.toPlainText()
+        except IndexError:
+            console.cwrite("You must first select a firmware operation from the list at left.")
         except Exception as ex:
             print ex
             return
@@ -944,7 +967,7 @@ class MainWindow(QMainWindow):
             # Erase All Settings
             eraseMemoryOnAll()
         elif fwOp == 1160:
-            # Erase All Settings
+            # View Firmware Version
             viewFirmwareVersion(id)
         elif fwOp == 2000:
             # Compress Chip IDs
