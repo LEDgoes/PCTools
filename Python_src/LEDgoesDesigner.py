@@ -39,7 +39,7 @@ class DesignerWindow(QMainWindow):
         self.ui = Ui_DesignerWindow()
         self.ui.setupUi(self)
         # Load the content from the file -- relative paths don't seem to work in Qt
-        f = open('LEDgoesDrawingTool.html', 'r')
+        f = open(globals.application_path + 'LEDgoesDrawingTool.html', 'r')
         html = f.read()
         self.ui.webView.setHtml(html)
         #self.setWindowIcon(QIcon('LEDgoes-Icon.ico'))

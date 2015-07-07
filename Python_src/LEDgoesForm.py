@@ -463,7 +463,7 @@ class Ui_MainWindow(object):
         self.actionAbout_LEDgoes_PC_Interface.setObjectName("actionAbout_LEDgoes_PC_Interface")
         self.actionUSB_Device_Selection = QtWidgets.QAction(MainWindow)
         self.actionUSB_Device_Selection.setCheckable(True)
-        self.actionUSB_Device_Selection.setChecked(True)
+        self.actionUSB_Device_Selection.setChecked(False)
         self.actionUSB_Device_Selection.setObjectName("actionUSB_Device_Selection")
         self.actionDumb_Enumeration = QtWidgets.QAction(MainWindow)
         self.actionDumb_Enumeration.setCheckable(True)

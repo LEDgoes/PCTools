@@ -25,6 +25,7 @@ msgLimit = 0              # How many messages can appear on the board before the
 msgToOverwrite = 0        # message to attempt to overwrite if we exceed the msgLimit (will skip to the next one if sticky)
 uiMsgList = 0             # reference to the message list on the UI of "Raw Text"
 rowPixels = 7             # how many pixels exist in each row of a 5x7 matrix (hint: 7)
+application_path = ""     # path to the application executable (not always the cwd)
 
 # This is the new "password" to get into Command Mode
 # It consists of the ASCII for "PassWord" + 0x80 on each letter, plus 0xFF at the end

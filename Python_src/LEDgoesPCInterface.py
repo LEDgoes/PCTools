@@ -56,7 +56,10 @@ import ConfigParser
 ################################################################################
 
 app = QApplication(sys.argv)
-app.setWindowIcon(QIcon('LEDgoes-Icon.ico'))
+if sys.platform != "darwin":
+    app.setWindowIcon(QIcon('LEDgoes-Icon.ico'))
+else:
+    app.setWindowIcon(QIcon('LEDgoes-Icon.icns'))
 
 ################################################################################
 # Step 2. Define the signal handler "KeyboardInterrupt" so the user can exit the app with Ctrl+C
@@ -142,10 +145,16 @@ def serialWelcome(welcomeType):
 # Step 4. Load all user-defined fonts & configurations
 ################################################################################
 
+# Make sure we are looking for fonts in the right place
+if getattr(sys, 'frozen', False):
+    globals.application_path = "%s/" % os.path.dirname(sys.executable)
+elif __file__:
+    globals.application_path = os.path.dirname(__file__)
+
 # Look for all .ledfont files in the current working directory
 console.cwrite("\nLoading fonts...")
 fontWarningsEnabled = True
-for filename in glob.glob("*.ledfont"):
+for filename in glob.glob("%s*.ledfont" % globals.application_path):
     try:
         # Debug: Print the filename
         console.cwrite(filename)
@@ -178,7 +187,7 @@ if len(globals.font) == 0:
     msgBox = QMessageBox()
     msgBox.setWindowTitle("BriteBlox PC Interface")
     msgBox.setText("Fatal error; cannot start")
-    msgBox.setInformativeText("No fonts were successfully loaded from the working directory of LEDgoes PC Interface.  Font files (*.ledfont) can be downloaded from http://www.ledgoes.com.")
+    msgBox.setInformativeText("No fonts were successfully loaded from the working directory of LEDgoes PC Interface.  Font files (*.ledfont) can be downloaded from http://www.ledgoes.com.\n\nTried path: %s*.ledfont" % globals.application_path)
     msgBox.setStandardButtons(QMessageBox.Ok)
     msgBox.setDefaultButton(QMessageBox.Ok)
     msgBox.setIcon(QMessageBox.Critical)
@@ -186,7 +195,7 @@ if len(globals.font) == 0:
     sys.exit(0)
 
 # Read the configuration file
-OpenBriteUSBDevicesOnly = True
+OpenBriteUSBDevicesOnly = False
 config = ConfigParser.ConfigParser()
 if config.read('briteblox.ini') != []:
     # Set the third, optional argument of get to 1 if you wish to use raw mode.
@@ -206,10 +215,11 @@ def serial_ports(mainWindow):
         [mainWindow.ui.selRow1COM.addItem(comPort) for comPort in comPorts]
         [mainWindow.ui.selRow2COM.addItem(comPort) for comPort in comPorts]
     else:
+        vidpid = "USB VID:PID=403:7AD0" if sys.platform == "darwin" else "VID_0403+PID_7AD0"
         # Everyone else
         for comPort in list_ports.comports():
             # If the user only wants to see connections for compatible OpenBrite devices, use this filter
-            if (not OpenBriteUSBDevicesOnly) or ("VID_0403+PID_7AD0" in comPort[2].upper()):
+            if (not OpenBriteUSBDevicesOnly) or (vidpid in comPort[2].upper()):
                 mainWindow.ui.selRow1COM.addItem(comPort[0])
                 mainWindow.ui.selRow2COM.addItem(comPort[0])
     
@@ -236,7 +246,7 @@ def serialSendEx(debugMsg, serialMsg, delay, keepCxn=False):
             # TODO FIXME: Port name should be determined from an array of rowNum -> COM port
             cxn = None
             try:
-                cxn = serial.Serial(mw.ui.selRow1COM.currentText(), baudRates[baudRateIdx])
+                cxn = serial.Serial(mw.ui.selRow1COM.currentText(), baudRates[baudRateIdx], timeout=2)
                 cxn.write(serialMsg)
             except Exception as ex:
                 console.cwrite("There was a problem opening the selected port (%s) and writing the desired message.  Please make sure you have a working COM port selected.\n" % mw.ui.selRow1COM.currentText())
@@ -263,7 +273,6 @@ def serialReadEx(msgLen, msgWrapper, delay, keepCxn=False):
             raise
     except:
         try:
-            sleep(delay)
             message = globals.cxn1.read(msgLen)
             console.cwrite(msgWrapper % message)
         except Exception as ex:
@@ -271,6 +280,11 @@ def serialReadEx(msgLen, msgWrapper, delay, keepCxn=False):
             console.cwrite("Details: %s" % ex)
             globals.cxn1.close()
             return False
+        if message == "":
+            console.cwrite("The device on %s did not respond to the query.  Please make sure you have a working COM port selected.\n" % mw.ui.selRow1COM.currentText())
+            return False
+        else:
+            console.cwrite([ord(m) for m in message])		
         if not keepCxn:
             globals.cxn1.close()
     return True
@@ -382,7 +396,7 @@ def setChipID(oldBoardId, newBoardId):
 
 def saveChipID(chipId):
     # Validate the input
-    chipAddr = isValidBoardAddress(chipId)
+    chipAddr = isValidBoardAddress(chipId) if (chipId != 64) else 64
     if chipAddr is None: return
     if chipAddr < 64:
         debugMsg = "Saving chip addresses on board %d..." % chipAddr
@@ -392,14 +406,17 @@ def saveChipID(chipId):
         serialSendEx(debugMsg, globals.cmdPassword + "\x85" + chr(int(chipAddr)), 2)
     elif chipAddr == 64:
         # Save All IDs
+        tempMsg = ""
         for i in range(128, 256):
-            if not serialSendEx("Saving chip ID " + i.__str__() + " to the chip...", globals.cmdPassword + "\x85" + chr(i), 0.002):
-                break
-        console.cwrite("Done saving all chip IDs.  Sorry for all the messages; we'll reduce the extraneous output later.")
+            tempMsg += globals.cmdPassword + "\x85" + chr(i)
+        if serialSendEx("Saving all chip IDs to all chips...", tempMsg, 0.5):
+            console.cwrite("Done saving all chip IDs.")
+        else:
+            console.cwrite("Failed to save all chip IDs.")
 
 def eraseChipID(chipId):
     # Validate the input
-    chipAddr = isValidBoardAddress(chipId)
+    chipAddr = isValidBoardAddress(chipId) if (chipId != 64) else 64
     if chipAddr is None: return
     if chipAddr < 64:
         debugMsg = "Erasing chip addresses on board %d..." % chipAddr
@@ -625,7 +642,7 @@ class MainWindow(QMainWindow):
     def showAbout(self, event):
         msgBox = QMessageBox()
         msgBox.setWindowTitle("About")
-        msgBox.setText("BriteBlox PC Interface, Version 1.2 - 2/21/2015")
+        msgBox.setText("BriteBlox PC Interface, Version 1.2.1a - 7/7/2015")
         msgBox.setInformativeText("Copyleft 2013-15 OpenBrite, LLC\n\nSee our GitHub repository at https://github.com/ledgoes/")
         msgBox.setStandardButtons(QMessageBox.Ok)
         msgBox.setDefaultButton(QMessageBox.Ok)
@@ -668,7 +685,7 @@ class MainWindow(QMainWindow):
                 self.ui.btnConnectRow1.setText("Connect")
             else:
                 # Open a new connection at 9600 baud; we'll account for the user-defined baud rate in serialWelcome()
-                globals.cxn1 = serial.Serial(portName, 9600)
+                globals.cxn1 = serial.Serial(portName, 9600, timeout=2)
                 activeConns += 1
                 self.ui.btnConnectRow1.setText("Disconnect")
         elif rowNum == 2:
@@ -677,7 +694,7 @@ class MainWindow(QMainWindow):
                 activeConns -= 1
                 self.ui.btnConnectRow2.setText("Connect")
             else:
-                globals.cxn1 = serial.Serial(portName)
+                globals.cxn1 = serial.Serial(portName, timeout=2)
                 activeConns += 1
                 self.ui.btnConnectRow2.setText("Disconnect")
                 
@@ -803,7 +820,7 @@ class MainWindow(QMainWindow):
             console.cwrite("Thread was probably already stopped")
         # Now get the animation thread going
         portName = str(self.ui.selRow1COM.currentText())
-        globals.cxn1 = serial.Serial(portName, 9600)
+        globals.cxn1 = serial.Serial(portName, 9600, timeout=2)
         serialWelcome("animation")
 
     def selectAllBoards(self, event):
