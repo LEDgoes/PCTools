@@ -18,20 +18,12 @@ import LEDgoesConsole as console
 errFlag = False           # If we've seen COM port errors, toggle this
 frames = deque()          # we update the marquee with "frames" after the update delay timer ticks
 
-def makeRMessageString(message):
-    'Construct & return the message to appear in Red'
-    return makeMessageString(message, 0x800000)   # hex value for dark red
-
-def makeGMessageString(message):
-    'Construct & return the message to appear in Green'
-    return makeMessageString(message, 0x008000)   # hex value for dark green
-
-def makeMessageString(message, panelColor):
+def makeMessageString(message):
     # TODO FIXME: Rows needs to be dynamic based on number of open COMs
     rows = 1
-    # Initialize subMessage as empty
-    subMessage = ""
-    serialMsg = deque()
+    # Initialize subMessage & serialMsg as empty arrays
+    subMessage = len(globals.panelColors) * ['']
+    serialMsg = len(globals.panelColors) * [None]
     # Find out which color we need to make the message in
     tree = ET.ElementTree(ET.fromstring(message))
     body = tree.find("body")
@@ -46,41 +38,44 @@ def makeMessageString(message, panelColor):
         # Default red is 0xFF0000, default yellow is 0x808000, and default green is 0x008000.  Default blue would probably be 0x0000FF.
         # The point is the high bit is always set when the text is a default color.
         # The lower bits are only set if a special arrangement is desired -- e.g. 0x1F7C00 would be bottom 2 rows red, top 2 rows green, and middle rows yellow
-        if (panelColor & segmentColor == panelColor):
-            # "rich text" color is set to contain this panel's color completely (i.e. no special pattern)
-            subMessage += element.text
-        else:  #if (panelColor & segmentColor == 0):
-            # "rich text" color is not set to contain this panel's color at all
-            subMessage += " " * (element.text.__len__())
-        #else:
-            # this color is set for specific rows, not the whole matrix
-        #    pass
+        for i in range(0, len(globals.panelColors)):
+            panelColor = globals.panelColors[i]
+            if panelColor & segmentColor == panelColor:
+                # "rich text" color is set to contain this panel's color completely (i.e. no special pattern)
+                subMessage[i] += element.text
+            else:  #if (panelColor & segmentColor == 0):
+                # "rich text" color is not set to contain this panel's color at all
+                subMessage[i] += " " * (element.text.__len__())
+            #else:
+                # this color is set for specific rows, not the whole matrix
+            #    pass
 
     # Find out how many rows exist in the selected font & size
-    rows = globals.font['LEDgoes Default Font']['size'][7]['weight'][4]['spacing']
-    # Make that many rows of serialMsg
-    serialMsg = [deque() for i in range(0, rows)]
-    # Make the message string from the letters
-    # TODO: Allow an optional amount of padding before the message is shown
-    for d in serialMsg:
-        d.extend(["\x00", "\x00", "\x00", "\x00", "\x00"])    # add padding to the left of the message
-    for character in subMessage:
-        # Map the current letter to something that appears in the font
-        for r in range(0, rows):
-            try:
-                # Add the prescribed row of the prescribed character
-                serialMsg[r].extend( globals.font['LEDgoes Default Font']['size'][7]['weight'][4][character][r] )
-            except KeyError:
-                serialMsg[r].extend(["\x00", "\x00", "\x00", "\x00", "\x00"])
-                console.cwrite("Character " + character + " unknown; substituting with whitespace")
-        # Insert spacing between characters
-        for r in range(0, rows):
-            try:
-                # Add the prescribed spacing between characters for this font
-                serialMsg[r].extend(['\x00'] * globals.font['LEDgoes Default Font']['size'][7]['weight'][4]['spacing'])
-            except:
-                # Tell the user there was a problem
-                console.cwrite("Character spacing is unknown for this font; assuming 0")
+    rows = 1 # TODO FIXME: globals.font['LEDgoes Default Font']['size'][7]['weight'][4]['spacing']  It's not spacing, there should be a separate "height"
+    # Make the message string from the letters, iterating over all colors
+    for colorIdx in range(0, len(subMessage)):
+        serialMsg[colorIdx] = [deque() for i in range(0, rows)]
+        # Make that many rows of serialMsg
+        for d in serialMsg[colorIdx]:
+            # TODO: Allow an optional amount of padding before the message is shown
+            d.extend(["\x00", "\x00", "\x00", "\x00", "\x00"])    # add padding to the left of the message
+        for character in subMessage[colorIdx]:
+            # Map the current letter to something that appears in the font
+            for r in range(0, rows):
+                try:
+                    # Add the prescribed row of the prescribed character
+                    serialMsg[colorIdx][r].extend( globals.font['LEDgoes Default Font']['size'][7]['weight'][4][character][r] )
+                except KeyError:
+                    serialMsg[colorIdx][r].extend(["\x00", "\x00", "\x00", "\x00", "\x00"])
+                    console.cwrite("Character " + character + " unknown; substituting with whitespace")
+            # Insert spacing between characters
+            for r in range(0, rows):
+                try:
+                    # Add the prescribed spacing between characters for this font
+                    serialMsg[colorIdx][r].extend(['\x00'] * globals.font['LEDgoes Default Font']['size'][7]['weight'][4]['spacing'])
+                except:
+                    # Tell the user there was a problem
+                    console.cwrite("Character spacing is unknown for this font; assuming 0")
     return serialMsg
 
 def makeMessageStringFromFont(message, color):
@@ -163,10 +158,17 @@ def updateMessages():
     # NOTE: This is where we used to print messages to the console.  If we want to do this again, put it here
     serialMsgRed = []             # array holds deques containing red pixel data for all messages
     serialMsgGreen = []           # array holds deques containing green pixel data for all messages
+    # Ask any asynchronous calls to update their messages
+    for evt in globals.asyncEvts:
+        evt.clear()
+    for evt in globals.asyncEvts:
+        if not evt.wait(15):
+            console.cwrite("Timed out after waiting 15 seconds for a data provider before refreshing scrolling.")
     for msg in globals.richMsgs:
         # Fill the new data structures with pixel data
-        zipMessageString(makeRMessageString(msg), serialMsgRed)
-        zipMessageString(makeGMessageString(msg), serialMsgGreen)
+        [msgRed, msgGreen] = makeMessageString(msg)
+        zipMessageString(msgRed, serialMsgRed)
+        zipMessageString(msgGreen, serialMsgGreen)
         #zipMessageString(makeMessageStringFromFont(msg, "red"), serialMsgRed)
         #zipMessageString(makeMessageStringFromFont(msg, "green"), serialMsgGreen)
     # Make the frames

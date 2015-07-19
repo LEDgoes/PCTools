@@ -8,6 +8,7 @@ import LEDgoesConsole as console
 
 html = u'<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">\n<html><head><meta name="qrichtext" content="1" /><style type="text/css">\np, li { white-space: pre-wrap; }\n</style></head><body style=" font-family:\'MS Shell Dlg 2\'; font-size:8.25pt; font-weight:400; font-style:normal;">\n<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">%s</p></body></html>'
 initMsgs = [html % '<span style=" color:#808000;"> :: AWAITING MESSAGES  </span>']
+panelColors = [0x800000, 0x008000]
 
 animTuple = None          # Tuple containing deques of each band (RGB), themselves containing a matrix of each frame
 boards = deque()          # Location of boards present in the marquee
@@ -18,7 +19,8 @@ dw = None                 # Designer window
 delay = 0                 # Amount of time to wait until updating the board with another round of serial data
 evt = threading.Event()   # Thread will check if the event has gone to False, and then wait
 evtDefinition = {}        # If the thread is running & the user wants to send a FW control signal, the thread will execute this string
-exitFlag = 0              # Will be raised when the thread should exit
+exitFlag = 0              # Will be raised when the serial thread should exit
+asyncEvts = []            # Will be raised when it's time for any async process to update its message
 font = {}                 # Master dictionary of all font information
 richMsgs = initMsgs       # Human-readable messages with formatting markers included
 msgLimit = 0              # How many messages can appear on the board before they start getting kicked off

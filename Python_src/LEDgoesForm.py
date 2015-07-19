@@ -2,8 +2,8 @@
 
 # Form implementation generated from reading ui file 'LEDgoes PC Interface.ui'
 #
-# Created: Sat Feb 21 22:18:57 2015
-#      by: PyQt5 UI code generator 5.1.1
+# Created: Sun Jul 19 13:43:20 2015
+#      by: PyQt5 UI code generator 5.3
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -227,6 +227,31 @@ class Ui_MainWindow(object):
         self.btnAnim.setGeometry(QtCore.QRect(520, 20, 61, 23))
         self.btnAnim.setObjectName("btnAnim")
         self.tabWidget.addTab(self.tabAnimation, "")
+        self.tab = QtWidgets.QWidget()
+        self.tab.setObjectName("tab")
+        self.lblRSSInstrs = QtWidgets.QLabel(self.tab)
+        self.lblRSSInstrs.setGeometry(QtCore.QRect(20, 20, 561, 41))
+        self.lblRSSInstrs.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignLeft|QtCore.Qt.AlignTop)
+        self.lblRSSInstrs.setWordWrap(True)
+        self.lblRSSInstrs.setObjectName("lblRSSInstrs")
+        self.lblQuotes = QtWidgets.QLabel(self.tab)
+        self.lblQuotes.setGeometry(QtCore.QRect(20, 60, 561, 21))
+        self.lblQuotes.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignLeft|QtCore.Qt.AlignTop)
+        self.lblQuotes.setWordWrap(True)
+        self.lblQuotes.setObjectName("lblQuotes")
+        self.txtQuotes = QtWidgets.QPlainTextEdit(self.tab)
+        self.txtQuotes.setGeometry(QtCore.QRect(20, 90, 461, 24))
+        self.txtQuotes.setMaximumSize(QtCore.QSize(16777215, 24))
+        self.txtQuotes.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.txtQuotes.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.txtQuotes.setTabChangesFocus(True)
+        self.txtQuotes.setLineWrapMode(QtWidgets.QPlainTextEdit.NoWrap)
+        self.txtQuotes.setPlainText("")
+        self.txtQuotes.setObjectName("txtQuotes")
+        self.btnGetQuotes = QtWidgets.QPushButton(self.tab)
+        self.btnGetQuotes.setGeometry(QtCore.QRect(490, 90, 91, 27))
+        self.btnGetQuotes.setObjectName("btnGetQuotes")
+        self.tabWidget.addTab(self.tab, "")
         self.tabFirmware = QtWidgets.QWidget()
         self.tabFirmware.setObjectName("tabFirmware")
         self.lblFirmwareDescription = QtWidgets.QLabel(self.tabFirmware)
@@ -234,7 +259,7 @@ class Ui_MainWindow(object):
         self.lblFirmwareDescription.setGeometry(QtCore.QRect(20, 20, 561, 16))
         self.lblFirmwareDescription.setObjectName("lblFirmwareDescription")
         self.gridLayoutWidget = QtWidgets.QWidget(self.tabFirmware)
-        self.gridLayoutWidget.setGeometry(QtCore.QRect(220, 80, 361, 91))
+        self.gridLayoutWidget.setGeometry(QtCore.QRect(220, 80, 361, 94))
         self.gridLayoutWidget.setObjectName("gridLayoutWidget")
         self.gridLayout = QtWidgets.QGridLayout(self.gridLayoutWidget)
         self.gridLayout.setContentsMargins(0, 0, 0, 0)
@@ -278,7 +303,7 @@ class Ui_MainWindow(object):
         self.lblFWU.setGeometry(QtCore.QRect(10, 190, 491, 16))
         self.lblFWU.setObjectName("lblFWU")
         self.gridLayoutWidget_2 = QtWidgets.QWidget(self.tabFirmware)
-        self.gridLayoutWidget_2.setGeometry(QtCore.QRect(10, 210, 571, 111))
+        self.gridLayoutWidget_2.setGeometry(QtCore.QRect(10, 210, 571, 120))
         self.gridLayoutWidget_2.setObjectName("gridLayoutWidget_2")
         self.gridLayout_2 = QtWidgets.QGridLayout(self.gridLayoutWidget_2)
         self.gridLayout_2.setContentsMargins(0, 0, 0, 0)
@@ -394,10 +419,10 @@ class Ui_MainWindow(object):
         self.gridLayout_4.addWidget(self.lblTargetBaudRate, 2, 1, 1, 1)
         self.tabWidget.addTab(self.tabBaudRate, "")
         self.groupMarqueeProps = QtWidgets.QGroupBox(self.centralwidget)
-        self.groupMarqueeProps.setGeometry(QtCore.QRect(10, 20, 211, 161))
+        self.groupMarqueeProps.setGeometry(QtCore.QRect(10, 20, 221, 161))
         self.groupMarqueeProps.setObjectName("groupMarqueeProps")
         self.gridLayoutWidget_5 = QtWidgets.QWidget(self.groupMarqueeProps)
-        self.gridLayoutWidget_5.setGeometry(QtCore.QRect(10, 20, 191, 31))
+        self.gridLayoutWidget_5.setGeometry(QtCore.QRect(10, 20, 215, 31))
         self.gridLayoutWidget_5.setObjectName("gridLayoutWidget_5")
         self.gridLayout_5 = QtWidgets.QGridLayout(self.gridLayoutWidget_5)
         self.gridLayout_5.setContentsMargins(0, 0, 0, 0)
@@ -417,7 +442,7 @@ class Ui_MainWindow(object):
         self.chkMultiplexed.setObjectName("chkMultiplexed")
         self.gridLayout_5.addWidget(self.chkMultiplexed, 0, 2, 1, 1)
         self.gridLayoutWidget_6 = QtWidgets.QWidget(self.groupMarqueeProps)
-        self.gridLayoutWidget_6.setGeometry(QtCore.QRect(10, 50, 191, 101))
+        self.gridLayoutWidget_6.setGeometry(QtCore.QRect(10, 50, 211, 111))
         self.gridLayoutWidget_6.setObjectName("gridLayoutWidget_6")
         self.gridLayout_6 = QtWidgets.QGridLayout(self.gridLayoutWidget_6)
         self.gridLayout_6.setContentsMargins(0, 0, 0, 0)
@@ -449,7 +474,7 @@ class Ui_MainWindow(object):
         self.gridLayout_6.addWidget(self.btnCustomLayout, 2, 0, 1, 1)
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
-        self.menubar.setGeometry(QtCore.QRect(0, 0, 621, 21))
+        self.menubar.setGeometry(QtCore.QRect(0, 0, 621, 25))
         self.menubar.setObjectName("menubar")
         self.menuSettings = QtWidgets.QMenu(self.menubar)
         self.menuSettings.setObjectName("menuSettings")
@@ -463,7 +488,7 @@ class Ui_MainWindow(object):
         self.actionAbout_LEDgoes_PC_Interface.setObjectName("actionAbout_LEDgoes_PC_Interface")
         self.actionUSB_Device_Selection = QtWidgets.QAction(MainWindow)
         self.actionUSB_Device_Selection.setCheckable(True)
-        self.actionUSB_Device_Selection.setChecked(False)
+        self.actionUSB_Device_Selection.setChecked(True)
         self.actionUSB_Device_Selection.setObjectName("actionUSB_Device_Selection")
         self.actionDumb_Enumeration = QtWidgets.QAction(MainWindow)
         self.actionDumb_Enumeration.setCheckable(True)
@@ -548,8 +573,8 @@ class Ui_MainWindow(object):
         self.txtMessage.setHtml(_translate("MainWindow", "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
 "<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
 "p, li { white-space: pre-wrap; }\n"
-"</style></head><body style=\" font-family:\'MS Shell Dlg 2\'; font-size:8.25pt; font-weight:400; font-style:normal;\">\n"
-"<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-size:8pt; color:#808000;\"><br /></p></body></html>"))
+"</style></head><body style=\" font-family:\'Ubuntu\'; font-size:11pt; font-weight:400; font-style:normal;\">\n"
+"<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-family:\'MS Shell Dlg 2\'; font-size:8pt; color:#808000;\"><br /></p></body></html>"))
         self.btnPush.setToolTip(_translate("MainWindow", "<html><head/><body><p>Adds the message in the composition box to the end of the message queue.</p></body></html>"))
         self.btnPush.setText(_translate("MainWindow", "Push"))
         self.btnReplace.setText(_translate("MainWindow", "Replace"))
@@ -591,12 +616,17 @@ class Ui_MainWindow(object):
         self.txtGIFPath.setHtml(_translate("MainWindow", "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
 "<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
 "p, li { white-space: pre-wrap; }\n"
-"</style></head><body style=\" font-family:\'MS Shell Dlg 2\'; font-size:8.25pt; font-weight:400; font-style:normal;\">\n"
-"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-size:8pt;\">C:\\Users\\Stephen\\Videos\\LEDgoes_anim.gif</span></p></body></html>"))
+"</style></head><body style=\" font-family:\'Ubuntu\'; font-size:11pt; font-weight:400; font-style:normal;\">\n"
+"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-family:\'MS Shell Dlg 2\'; font-size:8pt;\">C:\\Users\\Stephen\\Videos\\LEDgoes_anim.gif</span></p></body></html>"))
         self.btnAnim.setToolTip(_translate("MainWindow", "<html><head/><body><p>Displays the animation on the marquee.</p></body></html>"))
         self.btnAnim.setText(_translate("MainWindow", "Send"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabAnimation), _translate("MainWindow", "Animation"))
         self.tabWidget.setTabToolTip(self.tabWidget.indexOf(self.tabAnimation), _translate("MainWindow", "<html><head/><body><p>Displays the animation of your choice on the marquee.</p></body></html>"))
+        self.lblRSSInstrs.setText(_translate("MainWindow", "This tab will help you configure your BriteBlox marquee into an RSS feed reader.  It is currently set up to pull stock quotes from the NASDAQ exchange."))
+        self.lblQuotes.setText(_translate("MainWindow", "Enter up to 10 stock ticker symbols, separated by spaces or commas:"))
+        self.txtQuotes.setToolTip(_translate("MainWindow", "<html><head/><body><p>&quot;Access token secret&quot; from your Twitter Devloper account page for your LEDgoes application</p></body></html>"))
+        self.btnGetQuotes.setText(_translate("MainWindow", "Get Quotes"))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab), _translate("MainWindow", "RSS"))
         self.lblFirmwareDescription.setText(_translate("MainWindow", "Send commands to your boards in order to exert finer control over them."))
         self.lblTargetBoard.setText(_translate("MainWindow", "Desired ID:"))
         self.btnAllBoards.setToolTip(_translate("MainWindow", "<html><head/><body><p>Perform the desired action on all boards.</p></body></html>"))

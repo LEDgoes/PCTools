@@ -50,6 +50,8 @@ import LEDgoesTwitter
 from LEDgoesRawTextItem import RawTextItem
 # Allow user to save & import configurations
 import ConfigParser
+# TODO: REMOVE THIS
+import LEDgoesRSS as RSS
 
 ################################################################################
 # Step 1. Define the QApplication so we can start building GUI widgets
@@ -136,9 +138,11 @@ def serialWelcome(welcomeType):
     # Start a thread
     if welcomeType == "scroll":
         outputThread = scroll.serialThread()
+        outputThread.setDaemon(True)
         outputThread.start()
     elif welcomeType == "animation":
         animationThread = ImRts.animationThread()
+        animationThread.setDaemon(True)
         animationThread.start()
 
 ################################################################################
@@ -600,6 +604,8 @@ class MainWindow(QMainWindow):
         self.ui.btnTwitterStream.clicked.connect(self.twitterStream)
         # Animation panel
         self.ui.btnAnim.clicked.connect(self.showAnimation)
+        # RSS panel
+        self.ui.btnGetQuotes.clicked.connect(self.doQuotes)
         # Firmware panel
         #self.ui.btnShowTestPattern.clicked.connect(lambda: self.showTestPatternOn(self.ui.txtTestOn))
         #self.ui.btnShowAllTestPatterns.clicked.connect(lambda: self.showTestPatternOn(64))
@@ -784,10 +790,10 @@ class MainWindow(QMainWindow):
     def twitterAuth(self, event):
         global twitterApi
         twitterApi = LEDgoesTwitter.twitterAuth(
-            self.ui.txtTwitterConsumerKey.text(),
-            self.ui.txtTwitterConsumerSecret.text(),
-            self.ui.txtTwitterTokenKey.text(),
-            self.ui.txtTwitterTokenSecret.text()
+            self.ui.txtTwitterConsumerKey.toPlainText(),
+            self.ui.txtTwitterConsumerSecret.toPlainText(),
+            self.ui.txtTwitterTokenKey.toPlainText(),
+            self.ui.txtTwitterTokenSecret.toPlainText()
         )
         if twitterApi is None:
             console.cwrite("Failed to store Twitter authentication credentials")
@@ -822,6 +828,9 @@ class MainWindow(QMainWindow):
         portName = str(self.ui.selRow1COM.currentText())
         globals.cxn1 = serial.Serial(portName, 9600, timeout=2)
         serialWelcome("animation")
+
+    def doQuotes(self):
+        RSS.toggleQuotes(self.ui.txtQuotes.toPlainText())
 
     def selectAllBoards(self, event):
         # Just make the box say "All" - the program will pick up on that keyword
