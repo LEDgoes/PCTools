@@ -1,32 +1,47 @@
+PCTools/Python_src
+==================
+
 This is the Python source code for the LEDgoes PC Tools application.
 
-Windows standalone installer: LEDgoes Setup.msi
+Installation
+------------
 
-Other platforms can run the software with Python 2.7.6:
+Executables are available for each platform at http://www.ledgoes.com/?page_id=13 if you do not wish to run directly from the source code.
 
-python LEDgoesPCInterface.py
+If you would like to run from the source code:
+
+* Clone this repository
+* Run __pip install -r requirements.txt__ to set up all dependencies
+* Run __python LEDgoesPCInterface.py__ to run the program (Linux/Mac users should run as sudo in order to access serial ports)
 
 This version should be stable enough to facilitate production deployment.  There are some known issues but there should be very few unhandled exceptions and undocumented undesired behaviors.
 
-DRIVERS:
+Drivers
+-------
 
 To run LEDgoes from a USB Communicator, you will need drivers for the FTDI Chip so it appears as a Virtual COM Port.  Obtain these from http://www.ftdichip.com/Drivers/VCP.htm
 
-REQUIREMENTS/DEPENDENCIES:
-(You will not need to worry about these if using the Windows installer:)
+Requirements/Dependencies
+-------------------------
+
+(You will not need to worry about these if using one of the executable installers:)
+
+See requirements.txt for the list of dependencies.
 
 * Qt5
 * python-twitter
 * Pillow 2.3.1 (Python Imaging Library)
+* feedparser
 And possibly others...
 
-GETTING STARTED WITH THE PROGRAM:
+Getting Started With the Program
+--------------------------------
 
 When you first open the program, set how many panels are in your one-row display by using the Up/Down box.  (Currently, the software does not support multiple-row marquees.)
 
 The "Update Delay" (ms) is how you control the scroll rate.  A higher value here will cause the matrix to scroll slower.
 
-Select a baud rate from the "Speed (bps)" dropdown list.  The boards run at 9600 bps when first turned on, but will be automatically programmed to use whatever baud rate you select in the software.  If you are using the Wireless Communicator, you must choose the rate for which your radio is set to run.  If you are using the USB Communicator, you can pick the fastest rate (1 million baud) if you wish.  Longer marquees will require such a high baud rate.  115200 bps is not recommended because it has the highest error rate among the provided choices.
+Select a baud rate from the "Speed (bps)" dropdown list.  The boards run at 9600 bps when first turned on, but will be automatically programmed to use whatever baud rate you select in the software.  If you are using the Wireless Communicator, you must choose the rate for which your radio is set to run.  If you are using the USB Communicator, you can pick a speed of up to 500,000 bps if you wish.  Longer marquees will require such a high baud rate.  However, 1Mbps is not recommended because the board firmware cannot keep up at that speed.  Also, 115200 bps is not recommended because it has the highest error rate among the provided choices.
 
 Next, choose the COM port that represents the USB or Wireless Communicator.  Choosing the incorrect COM port may cause the program to tell you it's not open (in the form of an uncaught exception :-P), and the marquee will not show anything different.
 
@@ -34,7 +49,8 @@ Finally, hit "Connect" next to the COM port selection box.
 
 Send the marquee messages to scroll by selecting the "Raw Text" tab.  Enter messages in the box at the bottom, then hit the "Push" button.
 
-TWITTER:
+Twitter
+-------
 
 To display messages from Twitter, you need to have a Twitter account and register an application with it.  To do this, log in to https://dev.twitter.com with your Twitter username & password.  Click at the top where your avatar icon is, and it will activate a drop-down menu.  Click "My applications", then "Create New App".  Enter some information about it.
 
@@ -54,7 +70,8 @@ The Twitter API allows users to customize their stream to look for multiple keyw
 
 In the latest version of the LEDgoes software, you can now display Tweets and raw text concurrently.  If the Twitter feed is fast-moving, and/or you want to make sure your message is seen periodically, make sure to check the "Sticky" checkbox so your message does not get overwritten when its turn comes up in the circular buffer.
 
-ANIMATIONS:
+Animations
+----------
 
 This is still a bit hacky.  Input the path to a GIF image in the appropriate text field, then hit "Send."  The program will send each frame of the GIF image to the marquee based on the "Update Delay" -- currently, any timing information in the GIF files is discarded.
 
@@ -62,11 +79,22 @@ The reason this is still hacky is because the code is set up to display an anima
 
 Since LEDgoes only displays one shade of red, green, and yellow, GIFs are interpreted in this manner: Any RGB pixel with a red value > 127 (#7F0000) will show as red on the marquee.  Any RGB pixel with a green value > 127 (#007F00) will show as green on the marquee.  If both red & green are greater than 127 (#7F7F00), then the marquee will illuminate that pixel as yellow.  The digits for blue are ignored, and reserved for future use in an RGB-compatible program.
 
-FONTS:
+RSS
+---
+
+Currently, this feature takes a delimited list (with commas and/or spaces) of __up to 10__ ticker symbols of publicly-traded US companies.  It reaches out to the RSS feed at NASDAQ to fetch the latest stock quotes for the desired symbols.  They will be displayed on the matrix as Message #1.  This feature is still under development as well.
+
+Example: if you want quotes on big oil companies, enter into the box: XOM, COP, HAL, APC, SLB, CVX, BP, PBR
+
+Fonts
+-----
 
 There is one font provided at this time: the "LEDgoes Default Font."  It must be placed in the same directory as the program.  Currently, it supports one size and one boldness.  The specification of this file is in JSON, and can be easily edited in any text editor.  However, it will be easier for you to create and edit your own fonts once we publish the specification and port the "LEDgoes Font Maker" program to Python.
 
-ADVANCED CONTROLS AND TOPICS:
+There is code currently commented out that allows the use of TrueType fonts on the marquee.  The UI is still being thought out, plus some performance issues that will make it difficult to render long messages.
+
+Advanced Controls and Topics
+----------------------------
 
 When you first enable communication to the matrix, boards with an auto-assigned ID "one below" the value the program expects will reprogram themselves to the expected ID.  For a two-board matrix, the program expects board IDs 0 and 32.  If the boards come up as 0 and 31, the software will prevent you from having to reset the second board's ID by hand.
 
@@ -92,14 +120,16 @@ There is also a Clear Chip ID instruction in Board Firmware 3.2, but it has not 
 
 All backers are receiving Board Firmware 3.2, except for the Gen 1 & Gen 2 protos which were already shipped out a long time ago.
 
-ERRATA:
+Errata
+------
 
 * Stop the Twitter thread before closing the program, or else the program will stop responding and you'll probably have to close it through Task Manager.
 * Cutting & pasting external text into the Raw Text Composition Box has not been thoroughly tested.  If your text already has formatting, it might behave erratically.  At least make sure it has a red, green, or yellow color first.
 * Reducing the message limit to a number below the messages already in the queue will have an unpredictable effect.  You will need to delete messages manually, because the marquee will always show all messages in the queue, not just how many messages it is limited to.  We will make this automatic in a future release.
 * Program icons don't show up in the shortcut & taskbar when using the Windows installer to install the software.
 
-ENHANCEMENT WISHLIST:
+Enhancement Wishlist
+--------------------
 
 * Animations (Different sizes, BMP frames, AVI movies)
 * Enhance Twitter interactions & stream customizations for different languages & character sets
@@ -108,3 +138,11 @@ ENHANCEMENT WISHLIST:
 * Implementation of remaining control signals understood by the firmware to do debugging/development
 * IFTTT protocol support
 * Allowing 3rd-party & external plugins to integrate easily
+
+Making Binaries From Source
+---------------------------
+
+Binaries are built across all platforms with cx_Freeze.
+
+python build\_LEDgoes\_CX.py build
+

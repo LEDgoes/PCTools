@@ -12,6 +12,11 @@ The Python dependencies are:
 
 The contents of the "Csharp_deprecated" directory contain the entire MSVC 2010 solution file featuring 3 projects.
 
+Installation
+------------
+
+Navigate to the version you would like to use (the Python version or the deprecated C# version), and read the respective README file.
+
 The LEDgoes PC Interface
 ------------------------
 
