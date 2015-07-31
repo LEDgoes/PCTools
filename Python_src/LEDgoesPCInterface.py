@@ -648,7 +648,7 @@ class MainWindow(QMainWindow):
     def showAbout(self, event):
         msgBox = QMessageBox()
         msgBox.setWindowTitle("About")
-        msgBox.setText("BriteBlox PC Interface, Version 1.2.1a - 7/7/2015")
+        msgBox.setText("BriteBlox PC Interface, Version 1.3 - 7/30/2015")
         msgBox.setInformativeText("Copyleft 2013-15 OpenBrite, LLC\n\nSee our GitHub repository at https://github.com/ledgoes/")
         msgBox.setStandardButtons(QMessageBox.Ok)
         msgBox.setDefaultButton(QMessageBox.Ok)
