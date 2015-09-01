@@ -12,16 +12,22 @@ from time import sleep              # Don't spin-lock the CPU
 
 setColor = '\n<span style="color:#%s;">'
 endColor = '</span>'
-red = '800000'
-green = '008000'
-yellow = '808000'
+red = '800000'      # TODO: Try to use globals.red instead; convert that into the hex string without 0x in front
+green = '008000'    # TODO: Ditto...
+yellow = '808000'   # TODO: Ditto...
 counter = 0
 stockInstance = None
+desiredIndex = None # TODO: Make this a class variable, and prevent the class instance from getting deleted until the user deletes the item in the panel
 
+
+# Run initialization to connect this module's UI components to the code they are supposed to run
+def init_ui(windowInstance):
+    windowInstance.ui.btnGetQuotes.clicked.connect(lambda: toggleQuotes(windowInstance))
 
 # Handle button click for "Get Quotes" from the main UI
-def toggleQuotes(tickerString):
+def toggleQuotes(windowInstance):
     global stockInstance
+    tickerString = windowInstance.ui.txtQuotes.toPlainText()
     if len(tickerString) == 0:
         console.cwrite("You must enter at least one ticker symbol in order to use this feature.")
         return
@@ -33,14 +39,17 @@ def toggleQuotes(tickerString):
         stockInstance.join()
         stockInstance = None
         console.cwrite("Stock quote thread terminated.")
+        windowInstance.ui.btnGetQuotes.setText("Get Quotes")
     else:
         stockInstance = stockThread(tickerString)
         stockInstance.setDaemon(True)
         stockInstance.start()
+        windowInstance.ui.btnGetQuotes.setText("Stop Quotes")
 
 # Each stockThread object will fetch up to 10 quotes and update the scrolling message JIT (just-in-time)
 class stockThread (threading.Thread):
     def __init__(self, tickerString):
+        global desiredIndex
         # Find out if there is enough space in the message list to start this thread
         # Start the thread; call it active, and register the event
         super(stockThread, self).__init__()
@@ -56,9 +65,11 @@ class stockThread (threading.Thread):
             console.cwrite("You did not enter any valid ticker symbols.")
             return;
         self.feedURL = 'http://www.nasdaq.com/aspxcontent/NasdaqRSS.aspx?data=quotes&symbol=%s' % ("&symbol=".join(stocks))
+        desiredIndex = globals.pushMsg("RSS-stocks", "This is the stock feed", globals.html % "Awaiting stock data...", True, desiredIndex)
         console.cwrite("Stock quote thread is now running...")
     
     def run(self):
+        global desiredIndex
         while self.active:  # The user can toggle if this RSS feed is actively being read
             sleep(1)
             if not self.evt.is_set():
@@ -97,8 +108,7 @@ class stockThread (threading.Thread):
                             counter += 1
                 # We're done parsing, so join everything together
                 newMessage = globals.html % ''.join(info)
-                # FIXME: For now, this will be Message #1
-                globals.richMsgs[0] = newMessage
+                desiredIndex = globals.pushMsg("RSS-stocks", "This is the stock feed", newMessage, True, desiredIndex)
                 self.evt.set()
         # After the while loop terminates, remove references to the event
         globals.asyncEvts.remove(self.evt)

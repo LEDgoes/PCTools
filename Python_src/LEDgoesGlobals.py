@@ -8,7 +8,10 @@ import LEDgoesConsole as console
 
 html = u'<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">\n<html><head><meta name="qrichtext" content="1" /><style type="text/css">\np, li { white-space: pre-wrap; }\n</style></head><body style=" font-family:\'MS Shell Dlg 2\'; font-size:8.25pt; font-weight:400; font-style:normal;">\n<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">%s</p></body></html>'
 initMsgs = [html % '<span style=" color:#808000;"> :: AWAITING MESSAGES  </span>']
-panelColors = [0x800000, 0x008000]
+red = 0x800000
+green = 0x008000
+yellow = red | green
+panelColors = [red, green]
 
 animTuple = None          # Tuple containing deques of each band (RGB), themselves containing a matrix of each frame
 boards = deque()          # Location of boards present in the marquee
@@ -28,6 +31,7 @@ msgToOverwrite = 0        # message to attempt to overwrite if we exceed the msg
 uiMsgList = 0             # reference to the message list on the UI of "Raw Text"
 rowPixels = 7             # how many pixels exist in each row of a 5x7 matrix (hint: 7)
 application_path = ""     # path to the application executable (not always the cwd)
+#plugins = []              # reference to user-defined plugins
 
 # This is the new "password" to get into Command Mode
 # It consists of the ASCII for "PassWord" + 0x80 on each letter, plus 0xFF at the end
@@ -39,31 +43,41 @@ def msgIndexToOverwrite():
     global msgToOverwrite
     return msgToOverwrite
 
-def pushMsg(source, rawMessage, richMessage, isSticky):
+def pushMsg(source, rawMessage, richMessage, isSticky, desiredIndex=None):
     global richMsgs, msgLimit, msgToOverwrite, uiMsgList
     console.cwrite("Attempting to add message: " + rawMessage)
     console.cwrite(richMessage)
     # Count how many items exist in the list now
     msgList = uiMsgList.findItems('.*', Qt.MatchRegExp)
-    if len(msgList) >= msgLimit:
-        # We are at or above our message limit; find one to overwrite
-        written = False    # Keep track of if we've successfully overwritten a message
-        # Start with the message at index "msgToOverwrite", go to the end of the list, then restart at the beginning
-        msgIndexes = range(msgToOverwrite, msgLimit) + range(0, msgToOverwrite)
-        for index in msgIndexes:
-            if not msgList[index].sticky:    # Do not overwrite sticky messages
-                formattedSource = "[%s]" % source
-                formattedSource = formattedSource + " sticky" if isSticky else formattedSource
-                msgList[index].setText("%s %s" % (formattedSource, rawMessage))
-                msgList[index].formattedText = richMessage
-                msgList[index].sticky = isSticky
-                msgToOverwrite = index + 1
-                written = True
-                break
-        if not written:
-            raise Exception("Could not overwrite any messages; they are all sticky")
+    if desiredIndex is None:
+        if len(msgList) >= msgLimit:
+            # We are at or above our message limit; find one to overwrite
+            written = False    # Keep track of if we've successfully overwritten a message
+            # Start with the message at index "msgToOverwrite", go to the end of the list, then restart at the beginning
+            msgIndexes = range(msgToOverwrite, msgLimit) + range(0, msgToOverwrite)
+            for index in msgIndexes:
+                if not msgList[index].sticky:    # Do not overwrite sticky messages
+                    formattedSource = "[%s]" % source
+                    formattedSource = formattedSource + " sticky" if isSticky else formattedSource
+                    msgList[index].setText("%s %s" % (formattedSource, rawMessage))
+                    msgList[index].formattedText = richMessage
+                    msgList[index].sticky = isSticky
+                    msgToOverwrite = index + 1
+                    written = True
+                    break
+            if not written:
+                raise Exception("Could not overwrite any messages; they are all sticky")
+        else:
+            # We have not exceeded the maximum message count; add the message to the UI list
+            RawTextItem(richMessage, source, isSticky, uiMsgList)
     else:
-        # We have not exceeded the maximum message count; add the message to the UI list
-        RawTextItem(richMessage, source, isSticky, uiMsgList)
+        # This is the same code as before
+        formattedSource = "[%s]" % source
+        formattedSource = formattedSource + " sticky" if isSticky else formattedSource
+        msgList[desiredIndex].setText("%s %s" % (formattedSource, rawMessage))
+        msgList[desiredIndex].formattedText = richMessage
+        msgList[desiredIndex].sticky = isSticky
+
     # Reconstruct the global list by pulling out "formattedText" from the UI list objects
     richMsgs = [x.formattedText for x in uiMsgList.findItems('.*', Qt.MatchRegExp)]
+    return len(uiMsgList.findItems('.*', Qt.MatchRegExp)) - 1

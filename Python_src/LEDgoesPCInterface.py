@@ -595,17 +595,20 @@ class MainWindow(QMainWindow):
         self.ui.btnInsertRawTextBefore.clicked.connect(lambda: self.insertMessage(0))
         self.ui.btnInsertRawTextAfter.clicked.connect(lambda: self.insertMessage(1))
         self.ui.spinMsgLimit.valueChanged.connect(self.updateMsgLimit)
+        self.ui.rawTextList.itemClicked.connect(self.selectMessageWithMouse)
+        self.ui.rawTextList.currentItemChanged.connect(self.selectMessageWithKeyboard)
         self.ui.btnGreen.clicked.connect(self.setGreen)
         self.ui.btnRed.clicked.connect(self.setRed)
         self.ui.btnYellow.clicked.connect(self.setYellow)
         self.ui.btnPush.clicked.connect(self.pushMessage)
+        self.ui.btnReplace.clicked.connect(self.replaceMessage)
         # Twitter Feed panel
         self.ui.btnTwitterAuth.clicked.connect(self.twitterAuth)
         self.ui.btnTwitterStream.clicked.connect(self.twitterStream)
         # Animation panel
         self.ui.btnAnim.clicked.connect(self.showAnimation)
         # RSS panel
-        self.ui.btnGetQuotes.clicked.connect(self.doQuotes)
+        RSS.init_ui(self)
         # Firmware panel
         #self.ui.btnShowTestPattern.clicked.connect(lambda: self.showTestPatternOn(self.ui.txtTestOn))
         #self.ui.btnShowAllTestPatterns.clicked.connect(lambda: self.showTestPatternOn(64))
@@ -758,6 +761,16 @@ class MainWindow(QMainWindow):
     def updateMsgLimit(self, event):
         globals.msgLimit = event
 
+    def selectMessageWithMouse(self, listItem):
+        self.ui.txtMessage.setText(listItem.formattedText)
+        self.ui.btnReplace.setEnabled(True)
+        self.ui.isSticky.setChecked(listItem.sticky)
+
+    def selectMessageWithKeyboard(self, newListItem, oldListItem):
+        self.ui.txtMessage.setText(newListItem.formattedText)
+        self.ui.btnReplace.setEnabled(True)
+        self.ui.isSticky.setChecked(listItem.sticky)
+
     def setGreen(self, event):
         # Set the rich text editor to write in green and/or set selected text to green
         self.ui.txtMessage.setTextColor(Qt.GlobalColor(14))
@@ -785,6 +798,22 @@ class MainWindow(QMainWindow):
             ret = msgBox.exec_()
             return
         globals.pushMsg("raw-text", self.ui.txtMessage.toPlainText(), self.ui.txtMessage.toHtml(), self.ui.isSticky.isChecked())
+        self.ui.txtMessage.setText("")
+
+    def replaceMessage(self, event):
+        if self.ui.txtMessage.toPlainText() == "":
+            msgBox = QMessageBox()
+            msgBox.setWindowTitle("BriteBlox PC Interface")
+            msgBox.setText("Error: No empty messages allowed")
+            msgBox.setInformativeText("You cannot replace a message with an empty message.  If you want to delete this message, click \"Delete Selected\".")
+            msgBox.setStandardButtons(QMessageBox.Ok)
+            msgBox.setDefaultButton(QMessageBox.Ok)
+            msgBox.setIcon(QMessageBox.Warning)
+            ret = msgBox.exec_()
+            return
+        # delete the message from the UI list
+        for SelectedItem in self.ui.rawTextList.selectedItems():
+            globals.pushMsg("raw-text", self.ui.txtMessage.toPlainText(), self.ui.txtMessage.toHtml(), self.ui.isSticky.isChecked(), SelectedItem)
         self.ui.txtMessage.setText("")
 
     def twitterAuth(self, event):
@@ -828,9 +857,6 @@ class MainWindow(QMainWindow):
         portName = str(self.ui.selRow1COM.currentText())
         globals.cxn1 = serial.Serial(portName, 9600, timeout=2)
         serialWelcome("animation")
-
-    def doQuotes(self):
-        RSS.toggleQuotes(self.ui.txtQuotes.toPlainText())
 
     def selectAllBoards(self, event):
         # Just make the box say "All" - the program will pick up on that keyword
