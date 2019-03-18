@@ -18,7 +18,8 @@ def analyzeImage(path):
         'framecount': 0,
     }
     try:
-        while True:
+        #while True:
+            print "Tile?", im.tile
             if im.tile:
                 results['framecount'] += 1
                 tile = im.tile[0]
@@ -27,8 +28,8 @@ def analyzeImage(path):
                 if update_region_dimensions != im.size:
                     results['mode'] = 'partial'
                     return results
-            im.seek(im.tell() + 1)
-        return results
+            #im.seek(im.tell() + 1)
+            return results
     except EOFError:
         console.cwrite("Unexpected end of file in your GIF.  Your image does not conform to GIF 87a or 89a, or could be corrupt.")
         return

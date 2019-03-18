@@ -2,8 +2,8 @@
 
 # Form implementation generated from reading ui file 'LEDgoes PC Interface.ui'
 #
-# Created: Sun Jul 19 13:43:20 2015
-#      by: PyQt5 UI code generator 5.3
+# Created: Sun Oct 18 15:14:16 2015
+#      by: PyQt5 UI code generator 5.1.1
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -102,11 +102,6 @@ class Ui_MainWindow(object):
         self.btnInsertRawTextAfter.setEnabled(True)
         self.btnInsertRawTextAfter.setGeometry(QtCore.QRect(260, 60, 101, 23))
         self.btnInsertRawTextAfter.setObjectName("btnInsertRawTextAfter")
-        self.fontComboBox = QtWidgets.QFontComboBox(self.tabRawText)
-        self.fontComboBox.setEnabled(False)
-        self.fontComboBox.setGeometry(QtCore.QRect(100, 260, 171, 22))
-        self.fontComboBox.setEditable(True)
-        self.fontComboBox.setObjectName("fontComboBox")
         self.btnYellow = QtWidgets.QPushButton(self.tabRawText)
         self.btnYellow.setGeometry(QtCore.QRect(10, 280, 31, 23))
         self.btnYellow.setObjectName("btnYellow")
@@ -128,6 +123,14 @@ class Ui_MainWindow(object):
         self.isSticky = QtWidgets.QCheckBox(self.tabRawText)
         self.isSticky.setGeometry(QtCore.QRect(20, 310, 71, 20))
         self.isSticky.setObjectName("isSticky")
+        self.spinFontSize = QtWidgets.QSpinBox(self.tabRawText)
+        self.spinFontSize.setGeometry(QtCore.QRect(280, 260, 51, 22))
+        self.spinFontSize.setMinimum(1)
+        self.spinFontSize.setProperty("value", 6)
+        self.spinFontSize.setObjectName("spinFontSize")
+        self.selFontFamily = QtWidgets.QComboBox(self.tabRawText)
+        self.selFontFamily.setGeometry(QtCore.QRect(100, 260, 171, 22))
+        self.selFontFamily.setObjectName("selFontFamily")
         self.tabWidget.addTab(self.tabRawText, "")
         self.tabTwitter = QtWidgets.QWidget()
         self.tabTwitter.setObjectName("tabTwitter")
@@ -474,7 +477,7 @@ class Ui_MainWindow(object):
         self.gridLayout_6.addWidget(self.btnCustomLayout, 2, 0, 1, 1)
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
-        self.menubar.setGeometry(QtCore.QRect(0, 0, 621, 25))
+        self.menubar.setGeometry(QtCore.QRect(0, 0, 621, 21))
         self.menubar.setObjectName("menubar")
         self.menuSettings = QtWidgets.QMenu(self.menubar)
         self.menuSettings.setObjectName("menuSettings")
@@ -525,8 +528,7 @@ class Ui_MainWindow(object):
         MainWindow.setTabOrder(self.rawTextList, self.btnYellow)
         MainWindow.setTabOrder(self.btnYellow, self.btnRed)
         MainWindow.setTabOrder(self.btnRed, self.btnGreen)
-        MainWindow.setTabOrder(self.btnGreen, self.fontComboBox)
-        MainWindow.setTabOrder(self.fontComboBox, self.isSticky)
+        MainWindow.setTabOrder(self.btnGreen, self.isSticky)
         MainWindow.setTabOrder(self.isSticky, self.txtMessage)
         MainWindow.setTabOrder(self.txtMessage, self.btnPush)
         MainWindow.setTabOrder(self.btnPush, self.btnReplace)
@@ -573,8 +575,8 @@ class Ui_MainWindow(object):
         self.txtMessage.setHtml(_translate("MainWindow", "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
 "<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
 "p, li { white-space: pre-wrap; }\n"
-"</style></head><body style=\" font-family:\'Ubuntu\'; font-size:11pt; font-weight:400; font-style:normal;\">\n"
-"<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-family:\'MS Shell Dlg 2\'; font-size:8pt; color:#808000;\"><br /></p></body></html>"))
+"</style></head><body style=\" font-family:\'MS Shell Dlg 2\'; font-size:8.25pt; font-weight:400; font-style:normal;\">\n"
+"<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-size:8pt; color:#808000;\"><br /></p></body></html>"))
         self.btnPush.setToolTip(_translate("MainWindow", "<html><head/><body><p>Adds the message in the composition box to the end of the message queue.</p></body></html>"))
         self.btnPush.setText(_translate("MainWindow", "Push"))
         self.btnReplace.setText(_translate("MainWindow", "Replace"))
@@ -616,8 +618,8 @@ class Ui_MainWindow(object):
         self.txtGIFPath.setHtml(_translate("MainWindow", "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
 "<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
 "p, li { white-space: pre-wrap; }\n"
-"</style></head><body style=\" font-family:\'Ubuntu\'; font-size:11pt; font-weight:400; font-style:normal;\">\n"
-"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-family:\'MS Shell Dlg 2\'; font-size:8pt;\">C:\\Users\\Stephen\\Videos\\LEDgoes_anim.gif</span></p></body></html>"))
+"</style></head><body style=\" font-family:\'MS Shell Dlg 2\'; font-size:8.25pt; font-weight:400; font-style:normal;\">\n"
+"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-size:8pt;\">C:\\Users\\Stephen\\Videos\\LEDgoes_anim.gif</span></p></body></html>"))
         self.btnAnim.setToolTip(_translate("MainWindow", "<html><head/><body><p>Displays the animation on the marquee.</p></body></html>"))
         self.btnAnim.setText(_translate("MainWindow", "Send"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabAnimation), _translate("MainWindow", "Animation"))
